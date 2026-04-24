@@ -1,13 +1,16 @@
 import {
+  ConfigMapLike,
   EndpointLike,
   FlowEdge,
   FlowNode,
   IngressLike,
   KubeObjectLike,
   PodLike,
+  PersistentVolumeClaimLike,
   ReplicaSetLike,
   ResourceHealth,
   ResourceKind,
+  SecretLike,
   ServiceLike,
   WorkloadGraph,
   WorkloadLike,
@@ -20,6 +23,9 @@ const EDGE_COLORS: Record<string, string> = {
   service: "#0ea5e9",
   workload: "#10b981",
   pod: "#f59e0b",
+  config: "#64748b",
+  secret: "#ec4899",
+  storage: "#06b6d4",
 };
 
 const KIND_RANK: Record<ResourceKind, number> = {
@@ -31,6 +37,9 @@ const KIND_RANK: Record<ResourceKind, number> = {
   StatefulSet: 4,
   DaemonSet: 4,
   Pod: 5,
+  ConfigMap: 5,
+  Secret: 5,
+  PersistentVolumeClaim: 5,
   Unknown: 6,
 };
 
@@ -219,6 +228,10 @@ function buildReplicaSetOwnerIndex(replicaSets: ReplicaSetLike[] = []): Map<stri
   return owners;
 }
 
+function buildResourceIndex<T extends KubeObjectLike>(kind: ResourceKind, resources: T[] = []): Map<string, T> {
+  return new Map(resources.map(resource => [resourceKey(kind, resource), resource]));
+}
+
 function podOwnerKey(pod: PodLike, replicaSetOwners: Map<string, { kind: ResourceKind; name: string }>): string | undefined {
   const owner = pod.metadata?.ownerReferences?.[0];
   if (!owner?.kind || !owner.name) return undefined;
@@ -284,6 +297,53 @@ function ingressBackends(ingress: IngressLike): Array<{ serviceName: string; lab
   return backends;
 }
 
+function collectWorkloadRefs(workload: WorkloadLike): {
+  configMaps: string[];
+  secrets: string[];
+  persistentVolumeClaims: string[];
+} {
+  const configMaps = new Set<string>();
+  const secrets = new Set<string>();
+  const persistentVolumeClaims = new Set<string>();
+  const podSpec = workload.spec?.template?.spec;
+
+  podSpec?.volumes?.forEach(volume => {
+    if (volume.configMap?.name) configMaps.add(volume.configMap.name);
+    if (volume.secret?.secretName) secrets.add(volume.secret.secretName);
+    if (volume.persistentVolumeClaim?.claimName) {
+      persistentVolumeClaims.add(volume.persistentVolumeClaim.claimName);
+    }
+  });
+
+  const containers = [
+    ...(podSpec?.initContainers ?? []),
+    ...(podSpec?.containers ?? []),
+  ];
+
+  containers.forEach(container => {
+    container.envFrom?.forEach(source => {
+      if (source.configMapRef?.name) configMaps.add(source.configMapRef.name);
+      if (source.secretRef?.name) secrets.add(source.secretRef.name);
+    });
+
+    container.env?.forEach(env => {
+      if (env.valueFrom?.configMapKeyRef?.name) {
+        configMaps.add(env.valueFrom.configMapKeyRef.name);
+      }
+
+      if (env.valueFrom?.secretKeyRef?.name) {
+        secrets.add(env.valueFrom.secretKeyRef.name);
+      }
+    });
+  });
+
+  return {
+    configMaps: Array.from(configMaps),
+    secrets: Array.from(secrets),
+    persistentVolumeClaims: Array.from(persistentVolumeClaims),
+  };
+}
+
 function layout(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
   const incoming = new Map<string, number>();
   const outgoing = new Map<string, string[]>();
@@ -338,6 +398,63 @@ function addWorkloadNode(nodes: Map<string, FlowNode>, entry: WorkloadEntry): vo
   });
 }
 
+function addConfigMapNode(nodes: Map<string, FlowNode>, configMap: ConfigMapLike): void {
+  const dataKeys = Object.keys(configMap.data ?? {}).length;
+  addNode(nodes, {
+    id: resourceKey("ConfigMap", configMap),
+    type: "custom",
+    data: {
+      label: configMap.getName(),
+      type: "configmap",
+      kind: "ConfigMap",
+      namespace: configMap.getNs(),
+      extra: `${dataKeys} keys`,
+      health: "unknown",
+      resource: configMap,
+    },
+    sourcePosition: "right",
+    targetPosition: "left",
+  });
+}
+
+function addSecretNode(nodes: Map<string, FlowNode>, secret: SecretLike): void {
+  const dataKeys = Object.keys(secret.data ?? {}).length;
+  addNode(nodes, {
+    id: resourceKey("Secret", secret),
+    type: "custom",
+    data: {
+      label: secret.getName(),
+      type: "secret",
+      kind: "Secret",
+      namespace: secret.getNs(),
+      extra: secret.type ?? `${dataKeys} keys`,
+      health: "unknown",
+      resource: secret,
+    },
+    sourcePosition: "right",
+    targetPosition: "left",
+  });
+}
+
+function addPersistentVolumeClaimNode(nodes: Map<string, FlowNode>, pvc: PersistentVolumeClaimLike): void {
+  const phase = pvc.status?.phase ?? "Unknown";
+  addNode(nodes, {
+    id: resourceKey("PersistentVolumeClaim", pvc),
+    type: "custom",
+    data: {
+      label: pvc.getName(),
+      type: "persistentvolumeclaim",
+      kind: "PersistentVolumeClaim",
+      namespace: pvc.getNs(),
+      extra: pvc.status?.capacity?.storage ?? pvc.spec?.resources?.requests?.storage ?? phase,
+      health: phase === "Bound" ? "healthy" : phase === "Pending" ? "pending" : "unknown",
+      resource: pvc,
+    },
+    sourcePosition: "right",
+    targetPosition: "left",
+  });
+}
+
 export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph {
   const nodes = new Map<string, FlowNode>();
   const edges = new Map<string, FlowEdge>();
@@ -349,6 +466,9 @@ export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph 
   const serviceIndex = buildServiceIndex(services);
   const workloadIndex = buildWorkloadIndex(resources);
   const replicaSetOwners = buildReplicaSetOwnerIndex(resources.replicaSets);
+  const configMapIndex = buildResourceIndex("ConfigMap", (resources.configMaps ?? []).filter(item => namespaces.has(item.getNs())));
+  const secretIndex = buildResourceIndex("Secret", (resources.secrets ?? []).filter(item => namespaces.has(item.getNs())));
+  const pvcIndex = buildResourceIndex("PersistentVolumeClaim", (resources.persistentVolumeClaims ?? []).filter(item => namespaces.has(item.getNs())));
   const serviceIdsSeen = new Set<string>();
   const workloadIdsSeen = new Set<string>();
 
@@ -408,6 +528,36 @@ export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph 
     return serviceId;
   };
 
+  const connectWorkloadReferences = (entry: WorkloadEntry) => {
+    const { workload, kind } = entry;
+    const workloadId = resourceKey(kind, workload);
+    const refs = collectWorkloadRefs(workload);
+
+    refs.configMaps.forEach(name => {
+      const configMap = configMapIndex.get(objectKey("ConfigMap", workload.getNs(), name));
+      if (!configMap) return;
+      const configMapId = resourceKey("ConfigMap", configMap);
+      addConfigMapNode(nodes, configMap);
+      addEdge(edges, workloadId, configMapId, "config", "config");
+    });
+
+    refs.secrets.forEach(name => {
+      const secret = secretIndex.get(objectKey("Secret", workload.getNs(), name));
+      if (!secret) return;
+      const secretId = resourceKey("Secret", secret);
+      addSecretNode(nodes, secret);
+      addEdge(edges, workloadId, secretId, "secret", "secret");
+    });
+
+    refs.persistentVolumeClaims.forEach(name => {
+      const pvc = pvcIndex.get(objectKey("PersistentVolumeClaim", workload.getNs(), name));
+      if (!pvc) return;
+      const pvcId = resourceKey("PersistentVolumeClaim", pvc);
+      addPersistentVolumeClaimNode(nodes, pvc);
+      addEdge(edges, workloadId, pvcId, "storage", "volume");
+    });
+  };
+
   const connectServiceToBackends = (service: ServiceLike) => {
     const servicePods = podsForService(service, pods, endpoints);
     const serviceId = addServiceNode(service, servicePods);
@@ -418,6 +568,7 @@ export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph 
       const workloadId = resourceKey(kind, workload);
       workloadIdsSeen.add(workloadId);
       addWorkloadNode(nodes, entry);
+      connectWorkloadReferences(entry);
       addEdge(edges, serviceId, workloadId, "workload");
     });
 
@@ -502,6 +653,7 @@ export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph 
       const workloadId = resourceKey(kind, workload);
       if (workloadIdsSeen.has(workloadId)) return;
       addWorkloadNode(nodes, entry);
+      connectWorkloadReferences(entry);
     });
 
   const laidOutNodes = layout(Array.from(nodes.values()), Array.from(edges.values())).map(node => ({

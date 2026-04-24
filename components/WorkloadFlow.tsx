@@ -65,6 +65,9 @@ const CustomNode = ({ data }: { data: FlowNodeData }) => {
     statefulset: "sts",
     daemonset: "ds",
     pod: "pod",
+    configmap: "cm",
+    secret: "secret",
+    persistentvolumeclaim: "pvc",
   };
 
   return (

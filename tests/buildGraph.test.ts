@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkloadGraph } from "../graph/buildGraph";
 import {
+  ConfigMapLike,
   IngressLike,
+  PersistentVolumeClaimLike,
   PodLike,
   ReplicaSetLike,
+  SecretLike,
   ServiceLike,
   WorkloadLike,
   WorkloadResources,
@@ -173,4 +176,62 @@ test("falls back to pod nodes when no owning workload is known", () => {
 
   assert.ok(graph.nodes.some(node => node.id === "Pod:default:standalone-1"));
   assert.ok(graph.edges.some(edge => edge.source === "Service:default:standalone" && edge.target === "Pod:default:standalone-1"));
+});
+
+test("connects workloads to referenced config maps secrets and persistent volume claims", () => {
+  const deployment = kube<WorkloadLike>("Deployment", "default", "api", {
+    spec: {
+      replicas: 1,
+      template: {
+        metadata: { labels: { app: "api" } },
+        spec: {
+          containers: [
+            {
+              envFrom: [
+                { configMapRef: { name: "api-config" } },
+                { secretRef: { name: "api-secret" } },
+              ],
+              env: [
+                { valueFrom: { configMapKeyRef: { name: "feature-flags" } } },
+                { valueFrom: { secretKeyRef: { name: "api-token" } } },
+              ],
+            },
+          ],
+          volumes: [
+            { persistentVolumeClaim: { claimName: "api-data" } },
+            { configMap: { name: "api-config" } },
+            { secret: { secretName: "api-secret" } },
+          ],
+        },
+      },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    deployments: [deployment],
+    configMaps: [
+      kube<ConfigMapLike>("ConfigMap", "default", "api-config", { data: { A: "1" } }),
+      kube<ConfigMapLike>("ConfigMap", "default", "feature-flags", { data: { enabled: "true" } }),
+    ],
+    secrets: [
+      kube<SecretLike>("Secret", "default", "api-secret", { type: "Opaque", data: { password: "x" } }),
+      kube<SecretLike>("Secret", "default", "api-token", { type: "Opaque", data: { token: "x" } }),
+    ],
+    persistentVolumeClaims: [
+      kube<PersistentVolumeClaimLike>("PersistentVolumeClaim", "default", "api-data", {
+        status: { phase: "Bound", capacity: { storage: "10Gi" } },
+      }),
+    ],
+  });
+
+  assert.ok(graph.nodes.some(node => node.id === "ConfigMap:default:api-config"));
+  assert.ok(graph.nodes.some(node => node.id === "ConfigMap:default:feature-flags"));
+  assert.ok(graph.nodes.some(node => node.id === "Secret:default:api-secret"));
+  assert.ok(graph.nodes.some(node => node.id === "Secret:default:api-token"));
+  assert.ok(graph.nodes.some(node => node.id === "PersistentVolumeClaim:default:api-data"));
+  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "ConfigMap:default:api-config"));
+  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "Secret:default:api-secret"));
+  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "PersistentVolumeClaim:default:api-data"));
 });

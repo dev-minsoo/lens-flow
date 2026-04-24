@@ -7,6 +7,9 @@ export type ResourceKind =
   | "StatefulSet"
   | "DaemonSet"
   | "Pod"
+  | "ConfigMap"
+  | "Secret"
+  | "PersistentVolumeClaim"
   | "Unknown";
 
 export type ResourceHealth = "healthy" | "warning" | "error" | "pending" | "unknown";
@@ -94,6 +97,27 @@ export interface PodLike extends KubeObjectLike {
   };
 }
 
+export interface ContainerLike {
+  env?: Array<{
+    valueFrom?: {
+      configMapKeyRef?: {
+        name?: string;
+      };
+      secretKeyRef?: {
+        name?: string;
+      };
+    };
+  }>;
+  envFrom?: Array<{
+    configMapRef?: {
+      name?: string;
+    };
+    secretRef?: {
+      name?: string;
+    };
+  }>;
+}
+
 export interface WorkloadLike extends KubeObjectLike {
   kind?: ResourceKind;
   spec?: {
@@ -105,6 +129,21 @@ export interface WorkloadLike extends KubeObjectLike {
       metadata?: {
         labels?: Record<string, string>;
       };
+      spec?: {
+        containers?: ContainerLike[];
+        initContainers?: ContainerLike[];
+        volumes?: Array<{
+          configMap?: {
+            name?: string;
+          };
+          secret?: {
+            secretName?: string;
+          };
+          persistentVolumeClaim?: {
+            claimName?: string;
+          };
+        }>;
+      };
     };
   };
   status?: {
@@ -114,6 +153,32 @@ export interface WorkloadLike extends KubeObjectLike {
     replicas?: number;
     currentNumberScheduled?: number;
     desiredNumberScheduled?: number;
+  };
+}
+
+export interface ConfigMapLike extends KubeObjectLike {
+  data?: Record<string, string>;
+}
+
+export interface SecretLike extends KubeObjectLike {
+  type?: string;
+  data?: Record<string, string>;
+}
+
+export interface PersistentVolumeClaimLike extends KubeObjectLike {
+  spec?: {
+    storageClassName?: string;
+    resources?: {
+      requests?: {
+        storage?: string;
+      };
+    };
+  };
+  status?: {
+    phase?: string;
+    capacity?: {
+      storage?: string;
+    };
   };
 }
 
@@ -146,6 +211,9 @@ export interface WorkloadResources {
   statefulSets?: WorkloadLike[];
   daemonSets?: WorkloadLike[];
   replicaSets?: ReplicaSetLike[];
+  configMaps?: ConfigMapLike[];
+  secrets?: SecretLike[];
+  persistentVolumeClaims?: PersistentVolumeClaimLike[];
 }
 
 export interface FlowNodeData {
