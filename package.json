@@ -1,0 +1,50 @@
+{
+  "name": "lens-flow",
+  "version": "0.1.0",
+  "description": "Lens extension providing workload flow monitoring with React Flow",
+  "renderer": "dist/renderer.js",
+  "homepage": "https://github.com/openlens/lens-flow",
+  "publisher": "lens-flow",
+  "license": "MIT",
+  "keywords": [
+    "lens",
+    "openlens",
+    "kubernetes",
+    "react-flow",
+    "topology"
+  ],
+  "engines": {
+    "node": ">=20.0",
+    "lens": "^6.0.0"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "start": "webpack --watch",
+    "build": "npm run clean && webpack",
+    "clean": "rm -rf ./dist",
+    "test": "rm -rf ./.test-dist && tsc -p tsconfig.test.json && node --test .test-dist/tests/*.test.js && rm -rf ./.test-dist"
+  },
+  "dependencies": {
+    "reactflow": "^11.11.0"
+  },
+  "devDependencies": {
+    "@k8slens/extensions": "^6.0.0",
+    "@types/react": "^17.0.45",
+    "@types/react-dom": "^17.0.16",
+    "@types/node": "^20.0.0",
+    "mobx": "^6.12.0",
+    "mobx-react": "^7.6.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "typescript": "^5.2.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.0",
+    "css-loader": "^6.8.1",
+    "sass": "^1.69.0",
+    "sass-loader": "^13.3.2",
+    "style-loader": "^3.3.3"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.test-dist/
+*.tgz
+
+.DS_Store
+.omc/
+.claude/settings.local.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
