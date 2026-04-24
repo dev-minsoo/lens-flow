@@ -53,6 +53,7 @@ Lens Flow currently visualizes:
 - DaemonSet targets
 - Standalone Pod targets when no owning workload is known
 - `Pod -> ReplicaSet -> Deployment` owner chains
+- Workload references to ConfigMaps, Secrets, and PersistentVolumeClaims
 
 The graph also includes:
 
@@ -60,6 +61,8 @@ The graph also includes:
 - Namespace and resource kind labels on nodes
 - Edge deduplication for repeated paths
 - Deterministic graph layout
+- Resource visibility checkboxes
+- Left-to-right and top-to-bottom layout modes
 - Minimap and fit-view controls
 - Double-click on a resource node to open the Lens details panel
 
@@ -72,6 +75,8 @@ Service targets are resolved in this order:
 1. Endpoints data, when available
 2. Pod selector matching
 3. Workload template selector matching as a fallback
+
+ConfigMaps, Secrets, and PersistentVolumeClaims are connected from workload pod templates by reading container `env`, `envFrom`, and volume references.
 
 The pure graph builder lives in `graph/buildGraph.ts`, so the topology rules can be tested without running Lens.
 
