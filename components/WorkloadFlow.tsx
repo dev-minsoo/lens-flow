@@ -15,7 +15,9 @@ import { Renderer } from "@k8slens/extensions";
 import { buildWorkloadGraph } from "../graph/buildGraph";
 import {
   FlowNodeData,
+  GraphDirection,
   NamespaceLike,
+  ResourceKind,
   WorkloadResources,
 } from "../graph/types";
 import "./WorkloadFlow.scss";
@@ -109,6 +111,9 @@ const endpointsStore = getStore("endpointsApi") ?? getStore("endpointApi");
 const statefulSetStore = getStore("statefulSetApi") ?? getStore("statefulSetsApi");
 const daemonSetStore = getStore("daemonSetApi") ?? getStore("daemonSetsApi");
 const replicaSetStore = getStore("replicaSetApi") ?? getStore("replicaSetsApi");
+const configMapStore = getStore("configMapApi") ?? getStore("configMapsApi");
+const secretStore = getStore("secretApi") ?? getStore("secretsApi");
+const persistentVolumeClaimStore = getStore("persistentVolumeClaimApi") ?? getStore("persistentVolumeClaimsApi");
 
 function getSelectedNamespaces(): string[] {
   if (!namespaceStore) return [];
@@ -125,7 +130,22 @@ function storeItems<T>(store: KubeStoreLike | undefined): T[] {
   return (store?.items ?? []) as T[];
 }
 
-function buildGraph(): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
+function toReactFlowPosition(position: string | undefined): Position | undefined {
+  switch (position) {
+    case "top":
+      return Position.Top;
+    case "right":
+      return Position.Right;
+    case "bottom":
+      return Position.Bottom;
+    case "left":
+      return Position.Left;
+    default:
+      return undefined;
+  }
+}
+
+function buildGraph(direction: GraphDirection, visibleKinds: ResourceKind[]): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   const resources: WorkloadResources = {
     namespaces: getSelectedNamespaces(),
     ingresses: storeItems(ingressStore),
@@ -136,15 +156,18 @@ function buildGraph(): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
     statefulSets: storeItems(statefulSetStore),
     daemonSets: storeItems(daemonSetStore),
     replicaSets: storeItems(replicaSetStore),
+    configMaps: storeItems(configMapStore),
+    secrets: storeItems(secretStore),
+    persistentVolumeClaims: storeItems(persistentVolumeClaimStore),
   };
 
-  const graph = buildWorkloadGraph(resources);
+  const graph = buildWorkloadGraph(resources, { direction, visibleKinds });
 
   return {
     nodes: graph.nodes.map(node => ({
       ...node,
-      sourcePosition: node.sourcePosition === "right" ? Position.Right : undefined,
-      targetPosition: node.targetPosition === "left" ? Position.Left : undefined,
+      sourcePosition: toReactFlowPosition(node.sourcePosition),
+      targetPosition: toReactFlowPosition(node.targetPosition),
     })) as Node<FlowNodeData>[],
     edges: graph.edges.map(edge => ({
       ...edge,
@@ -155,7 +178,12 @@ function buildGraph(): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   };
 }
 
-export const WorkloadFlow = observer(() => {
+interface WorkloadFlowProps {
+  direction: GraphDirection;
+  visibleKinds: ResourceKind[];
+}
+
+export const WorkloadFlow = observer(({ direction, visibleKinds }: WorkloadFlowProps) => {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isReady, setIsReady] = useState(false);
@@ -172,15 +200,18 @@ export const WorkloadFlow = observer(() => {
       statefulSetStore,
       daemonSetStore,
       replicaSetStore,
+      configMapStore,
+      secretStore,
+      persistentVolumeClaimStore,
     ].filter((store): store is KubeStoreLike => Boolean(store)),
     []
   );
 
   const updateGraph = useCallback(() => {
-    const { nodes: newNodes, edges: newEdges } = buildGraph();
+    const { nodes: newNodes, edges: newEdges } = buildGraph(direction, visibleKinds);
     setNodes(newNodes);
     setEdges(newEdges);
-  }, []);
+  }, [direction, visibleKinds]);
 
   const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
     const selfLink = node.data.resource?.selfLink;

@@ -235,3 +235,42 @@ test("connects workloads to referenced config maps secrets and persistent volume
   assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "Secret:default:api-secret"));
   assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "PersistentVolumeClaim:default:api-data"));
 });
+
+test("supports top to bottom layout and visible resource filtering", () => {
+  const deployment = kube<WorkloadLike>("Deployment", "default", "api", {
+    spec: {
+      replicas: 1,
+      template: {
+        metadata: { labels: { app: "api" } },
+        spec: {
+          containers: [{ envFrom: [{ secretRef: { name: "api-secret" } }] }],
+        },
+      },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const graph = buildWorkloadGraph(
+    {
+      ...baseResources,
+      deployments: [deployment],
+      secrets: [
+        kube<SecretLike>("Secret", "default", "api-secret", { type: "Opaque" }),
+      ],
+    },
+    {
+      direction: "TB",
+      visibleKinds: ["Deployment", "Secret"],
+    }
+  );
+
+  const deploymentNode = graph.nodes.find(node => node.id === "Deployment:default:api");
+  const secretNode = graph.nodes.find(node => node.id === "Secret:default:api-secret");
+
+  assert.ok(deploymentNode);
+  assert.ok(secretNode);
+  assert.equal(deploymentNode.sourcePosition, "bottom");
+  assert.equal(secretNode.targetPosition, "top");
+  assert.ok(secretNode.position.y > deploymentNode.position.y);
+  assert.deepEqual(graph.nodes.map(node => node.data.kind).sort(), ["Deployment", "Secret"]);
+});

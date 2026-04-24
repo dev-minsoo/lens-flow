@@ -14,6 +14,8 @@ export type ResourceKind =
 
 export type ResourceHealth = "healthy" | "warning" | "error" | "pending" | "unknown";
 
+export type GraphDirection = "LR" | "TB";
+
 export interface OwnerReferenceLike {
   kind?: string;
   name?: string;
@@ -265,4 +267,9 @@ export interface FlowEdge {
 export interface WorkloadGraph {
   nodes: FlowNode[];
   edges: FlowEdge[];
+}
+
+export interface WorkloadGraphOptions {
+  direction?: GraphDirection;
+  visibleKinds?: ResourceKind[];
 }

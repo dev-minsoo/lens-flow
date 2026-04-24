@@ -1,3 +1,69 @@
 .WorkloadFlowPage {
   height: 100%;
 }
+
+.WorkloadFlowToolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
+
+.WorkloadFlowToolbarPrimary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.WorkloadFlowDirection {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  background: var(--boxBackground, rgba(23, 25, 35, 0.78));
+
+  button {
+    border: 0;
+    border-radius: 6px;
+    padding: 5px 10px;
+    color: var(--textColorSecondary, #94a3b8);
+    background: transparent;
+    font-size: 12px;
+    line-height: 1.2;
+    cursor: pointer;
+
+    &.active {
+      color: var(--textColorPrimary, #f8fafc);
+      background: rgba(42, 138, 246, 0.24);
+    }
+  }
+}
+
+.WorkloadFlowResourceFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+    border-radius: 999px;
+    color: var(--textColorSecondary, #cbd5e1);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+
+    input {
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      accent-color: #2a8af6;
+    }
+  }
+}

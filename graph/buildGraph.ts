@@ -3,6 +3,7 @@ import {
   EndpointLike,
   FlowEdge,
   FlowNode,
+  GraphDirection,
   IngressLike,
   KubeObjectLike,
   PodLike,
@@ -13,6 +14,7 @@ import {
   SecretLike,
   ServiceLike,
   WorkloadGraph,
+  WorkloadGraphOptions,
   WorkloadLike,
   WorkloadResources,
 } from "./types";
@@ -344,7 +346,13 @@ function collectWorkloadRefs(workload: WorkloadLike): {
   };
 }
 
-function layout(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
+function connectionPositions(direction: GraphDirection): Pick<FlowNode, "sourcePosition" | "targetPosition"> {
+  return direction === "TB"
+    ? { sourcePosition: "bottom", targetPosition: "top" }
+    : { sourcePosition: "right", targetPosition: "left" };
+}
+
+function layout(nodes: FlowNode[], edges: FlowEdge[], direction: GraphDirection): FlowNode[] {
   const incoming = new Map<string, number>();
   const outgoing = new Map<string, string[]>();
   edges.forEach(edge => {
@@ -368,13 +376,14 @@ function layout(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
     });
     const index = ordered.findIndex(item => item.id === node.id);
     const offset = -((ordered.length - 1) * ROW_GAP) / 2;
+    const position = direction === "TB"
+      ? { x: offset + index * RANK_GAP, y: rank * ROW_GAP * 1.35 }
+      : { x: rank * RANK_GAP, y: offset + index * ROW_GAP };
 
     return {
       ...node,
-      position: {
-        x: rank * RANK_GAP,
-        y: offset + index * ROW_GAP,
-      },
+      ...connectionPositions(direction),
+      position,
     };
   });
 }
@@ -455,7 +464,19 @@ function addPersistentVolumeClaimNode(nodes: Map<string, FlowNode>, pvc: Persist
   });
 }
 
-export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph {
+function filterVisibleKinds(graph: WorkloadGraph, visibleKinds: ResourceKind[] | undefined): WorkloadGraph {
+  if (!visibleKinds) return graph;
+
+  const visible = new Set(visibleKinds);
+  const nodes = graph.nodes.filter(node => visible.has(node.data.kind));
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const edges = graph.edges.filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+
+  return { nodes, edges };
+}
+
+export function buildWorkloadGraph(resources: WorkloadResources, options: WorkloadGraphOptions = {}): WorkloadGraph {
+  const direction = options.direction ?? "LR";
   const nodes = new Map<string, FlowNode>();
   const edges = new Map<string, FlowEdge>();
   const namespaces = new Set(resources.namespaces);
@@ -656,16 +677,16 @@ export function buildWorkloadGraph(resources: WorkloadResources): WorkloadGraph 
       connectWorkloadReferences(entry);
     });
 
-  const laidOutNodes = layout(Array.from(nodes.values()), Array.from(edges.values())).map(node => ({
+  const laidOutNodes = layout(Array.from(nodes.values()), Array.from(edges.values()), direction).map(node => ({
     ...node,
     position: {
-      x: node.position.x - NODE_WIDTH,
-      y: node.position.y + 300,
+      x: node.position.x + (direction === "TB" ? 720 : -NODE_WIDTH),
+      y: node.position.y + (direction === "TB" ? 90 : 300),
     },
   }));
 
-  return {
+  return filterVisibleKinds({
     nodes: laidOutNodes,
     edges: Array.from(edges.values()),
-  };
+  }, options.visibleKinds);
 }
