@@ -41,41 +41,6 @@ const CloudIcon = () => (
   </svg>
 );
 
-const LoadBalancerIcon = () => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="2" y1="12" x2="22" y2="12" />
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-  </svg>
-);
-
-const IngressIcon = () => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const ServiceIcon = () => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const WorkloadIcon = () => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-    <line x1="12" y1="22.08" x2="12" y2="12" />
-  </svg>
-);
-
-const PodIcon = () => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="4" y="4" width="16" height="16" rx="3" />
-    <path d="M8 9h8M8 13h8M8 17h5" strokeLinecap="round" />
-  </svg>
-);
-
 const CloudNode = ({ data }: { data: FlowNodeData }) => (
   <div className="cloud-node">
     <CloudIcon />
@@ -85,7 +50,6 @@ const CloudNode = ({ data }: { data: FlowNodeData }) => (
 
 const LoadBalancerNode = ({ data }: { data: FlowNodeData }) => (
   <div className={`lb-node is-${data.health}`} title={data.extra}>
-    <div className="lb-icon"><LoadBalancerIcon /></div>
     <div className="lb-content">
       <div className="lb-label">{data.label}</div>
       {data.extra && <div className="lb-ip">{data.extra}</div>}
@@ -94,15 +58,6 @@ const LoadBalancerNode = ({ data }: { data: FlowNodeData }) => (
 );
 
 const CustomNode = ({ data }: { data: FlowNodeData }) => {
-  const icons: Record<string, React.ReactNode> = {
-    ingress: <IngressIcon />,
-    service: <ServiceIcon />,
-    deployment: <WorkloadIcon />,
-    statefulset: <WorkloadIcon />,
-    daemonset: <WorkloadIcon />,
-    pod: <PodIcon />,
-  };
-
   const kindLabels: Record<string, string> = {
     ingress: "ing",
     service: "svc",
@@ -114,7 +69,6 @@ const CustomNode = ({ data }: { data: FlowNodeData }) => {
 
   return (
     <div className={`custom-node custom-node-${data.type} is-${data.health}`} title={data.detail ?? data.extra}>
-      <div className="node-icon">{icons[data.type] ?? <WorkloadIcon />}</div>
       <div className="node-content">
         <div className="node-label" title={data.label}>{data.label}</div>
         <div className="node-meta">
