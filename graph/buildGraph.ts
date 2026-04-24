@@ -176,13 +176,13 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     source,
     target,
     type: "smoothstep",
-    animated: colorKey === "internet" || colorKey === "ingress",
+    animated: true,
     label,
     data: { label },
     style: {
       stroke: color,
-      strokeWidth: 2,
-      strokeDasharray: colorKey === "pod" ? undefined : "8,4",
+      strokeWidth: 2.25,
+      strokeDasharray: "7 7",
     },
     markerEnd: {
       type: "arrowclosed",

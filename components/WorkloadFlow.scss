@@ -2,7 +2,10 @@
   height: 100%;
   width: 100%;
   min-height: 500px;
-  background: var(--mainBackground, #1a1a2e);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(42, 138, 246, 0.1), transparent 30%),
+    radial-gradient(circle at 80% 20%, rgba(174, 83, 186, 0.09), transparent 28%),
+    var(--mainBackground, #0f1117);
   border-radius: 8px;
   position: relative;
 
@@ -10,7 +13,6 @@
     background: transparent;
   }
 
-  // Cloud Node (Internet)
   .cloud-node {
     display: flex;
     flex-direction: column;
@@ -32,24 +34,34 @@
     }
   }
 
-  // LoadBalancer Node
   .lb-node {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: var(--boxBackground, #252542);
-    border: 1px solid #475569;
-    border-radius: 8px;
-    padding: 10px 14px;
-    min-width: 100px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    gap: 12px;
+    position: relative;
+    min-width: 154px;
+    padding: 12px 14px;
+    color: #f8fafc;
+    background:
+      linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
+      linear-gradient(135deg, rgba(42, 138, 246, 0.85), rgba(174, 83, 186, 0.85)) border-box;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 14px 36px rgba(0, 0, 0, 0.34),
+      0 0 26px rgba(42, 138, 246, 0.1);
 
     &.is-pending {
-      border-color: #f59e0b;
+      background:
+        linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
+        linear-gradient(135deg, #f59e0b, rgba(174, 83, 186, 0.75)) border-box;
     }
 
     &.is-error {
-      border-color: #ef4444;
+      background:
+        linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
+        linear-gradient(135deg, #ef4444, rgba(174, 83, 186, 0.75)) border-box;
     }
 
     .lb-icon {
@@ -58,9 +70,11 @@
       justify-content: center;
       width: 32px;
       height: 32px;
-      background: rgba(100, 116, 139, 0.2);
-      border-radius: 6px;
-      color: #94a3b8;
+      background:
+        linear-gradient(135deg, rgba(42, 138, 246, 0.28), rgba(174, 83, 186, 0.22));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9px;
+      color: #c7d2fe;
 
       svg {
         width: 20px;
@@ -71,39 +85,49 @@
     .lb-content {
       .lb-label {
         font-size: 11px;
-        font-weight: 600;
-        color: #94a3b8;
+        font-weight: 700;
+        color: #f8fafc;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
 
       .lb-ip {
         font-size: 11px;
-        color: #64748b;
+        color: #94a3b8;
         font-family: monospace;
       }
     }
   }
 
-  // Custom Node Styles (ArgoCD-like)
   .custom-node {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: var(--boxBackground, #252542);
-    border: 1px solid var(--borderColor, #3a3a5c);
-    border-radius: 8px;
-    padding: 12px 16px;
-    min-width: 180px;
-    max-width: 260px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    transition: all 0.2s ease;
+    position: relative;
+    min-width: 220px;
+    max-width: 280px;
+    min-height: 68px;
+    padding: 13px 15px;
+    color: #f8fafc;
+    background:
+      linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
+      linear-gradient(135deg, var(--node-accent, #2a8af6), rgba(174, 83, 186, 0.85)) border-box;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 14px 36px rgba(0, 0, 0, 0.34),
+      0 0 30px var(--node-glow, rgba(42, 138, 246, 0.1));
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
     cursor: pointer;
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      border-color: var(--borderColorFocus, #5a5a8c);
+      filter: brightness(1.08);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.06),
+        0 18px 44px rgba(0, 0, 0, 0.44),
+        0 0 38px var(--node-glow, rgba(42, 138, 246, 0.16));
     }
 
     .node-icon {
@@ -112,8 +136,13 @@
       justify-content: center;
       width: 36px;
       height: 36px;
-      border-radius: 6px;
+      border-radius: 10px;
       flex-shrink: 0;
+      color: var(--node-accent, #2a8af6);
+      background:
+        linear-gradient(135deg, rgba(42, 138, 246, 0.18), rgba(174, 83, 186, 0.14));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 
       svg {
         width: 20px;
@@ -127,30 +156,31 @@
       overflow: hidden;
 
       .node-label {
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--textColorPrimary, #fff);
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--textColorPrimary, #f8fafc);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         margin-bottom: 4px;
       }
 
-    .node-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 0;
+      .node-meta {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
 
         .node-kind,
         .node-namespace {
           font-size: 10px;
-          color: var(--textColorSecondary, #8888aa);
+          color: #cbd5e1;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.07);
           padding: 2px 6px;
-          border-radius: 4px;
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          border-radius: 999px;
         }
 
         .node-namespace {
@@ -164,7 +194,7 @@
 
         .node-extra {
           font-size: 10px;
-          color: #64748b;
+          color: #94a3b8;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -189,65 +219,39 @@
       }
     }
 
-    // Ingress Node
     &.custom-node-ingress {
-      border-left: 3px solid #8b5cf6;
-
-      .node-icon {
-        background: rgba(139, 92, 246, 0.15);
-        color: #a78bfa;
-      }
+      --node-accent: #ae53ba;
+      --node-glow: rgba(174, 83, 186, 0.18);
     }
 
-    // Service Node
     &.custom-node-service {
-      border-left: 3px solid #0ea5e9;
-
-      .node-icon {
-        background: rgba(14, 165, 233, 0.15);
-        color: #38bdf8;
-      }
+      --node-accent: #2a8af6;
+      --node-glow: rgba(42, 138, 246, 0.18);
     }
 
-    // Deployment Node
     &.custom-node-deployment {
-      border-left: 3px solid #10b981;
-
-      .node-icon {
-        background: rgba(16, 185, 129, 0.15);
-        color: #34d399;
-      }
+      --node-accent: #10b981;
+      --node-glow: rgba(16, 185, 129, 0.16);
     }
 
     &.custom-node-statefulset {
-      border-left: 3px solid #14b8a6;
-
-      .node-icon {
-        background: rgba(20, 184, 166, 0.15);
-        color: #2dd4bf;
-      }
+      --node-accent: #14b8a6;
+      --node-glow: rgba(20, 184, 166, 0.16);
     }
 
     &.custom-node-daemonset {
-      border-left: 3px solid #84cc16;
-
-      .node-icon {
-        background: rgba(132, 204, 22, 0.15);
-        color: #a3e635;
-      }
+      --node-accent: #84cc16;
+      --node-glow: rgba(132, 204, 22, 0.15);
     }
 
     &.custom-node-pod {
-      border-left: 3px solid #f59e0b;
-
-      .node-icon {
-        background: rgba(245, 158, 11, 0.15);
-        color: #fbbf24;
-      }
+      --node-accent: #f59e0b;
+      --node-glow: rgba(245, 158, 11, 0.16);
     }
 
     &.is-warning {
-      border-color: #f59e0b;
+      --node-accent: #f59e0b;
+      --node-glow: rgba(245, 158, 11, 0.2);
 
       .status-icon {
         background: #f59e0b;
@@ -255,7 +259,8 @@
     }
 
     &.is-error {
-      border-color: #ef4444;
+      --node-accent: #ef4444;
+      --node-glow: rgba(239, 68, 68, 0.2);
 
       .status-icon {
         background: #ef4444;
@@ -263,7 +268,8 @@
     }
 
     &.is-pending {
-      border-color: #eab308;
+      --node-accent: #eab308;
+      --node-glow: rgba(234, 179, 8, 0.2);
 
       .status-icon {
         background: #eab308;
@@ -290,7 +296,7 @@
   // Edge animation
   @keyframes dash {
     from {
-      stroke-dashoffset: 24;
+      stroke-dashoffset: 28;
     }
     to {
       stroke-dashoffset: 0;
@@ -299,10 +305,12 @@
 
   .react-flow__edge-path {
     stroke-linecap: round;
+    stroke-dasharray: 7 7;
+    filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
   }
 
   .react-flow__edge.animated .react-flow__edge-path {
-    animation: dash 1s linear infinite;
+    animation: dash 0.9s linear infinite;
   }
 
   // Status pulse animation
