@@ -18,8 +18,10 @@ export default class LensFlowExtension extends Renderer.LensExtension {
 
   clusterPageMenus = [
     {
+      id: "workload-flow",
       target: { pageId: "workload-flow" },
       title: "Workload Monitoring",
+      orderNumber: 35,
       components: {
         Icon: (props: Renderer.Component.IconProps) => (
           <Renderer.Component.Icon {...props} material="device_hub" />
