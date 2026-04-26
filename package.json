@@ -2,13 +2,15 @@
   "name": "lens-flow",
   "version": "0.1.0",
   "description": "Lens extension providing workload flow monitoring with React Flow",
+  "main": "dist/main.js",
   "renderer": "dist/renderer.js",
-  "homepage": "https://github.com/openlens/lens-flow",
-  "publisher": "lens-flow",
+  "homepage": "https://github.com/dev-minsoo/lens-flow",
+  "publisher": "dev-minsoo",
   "license": "MIT",
   "keywords": [
     "lens",
     "openlens",
+    "extension",
     "kubernetes",
     "react-flow",
     "topology"
