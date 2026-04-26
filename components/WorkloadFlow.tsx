@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { autorun } from "mobx";
 import ReactFlow, {
@@ -16,7 +16,6 @@ import { buildWorkloadGraph } from "../graph/buildGraph";
 import {
   FlowNodeData,
   GraphDirection,
-  NamespaceLike,
   ResourceKind,
   WorkloadResources,
 } from "../graph/types";
@@ -30,11 +29,6 @@ type KubeStoreLike = {
   items: unknown[];
   loadAll(): Promise<unknown>;
   subscribe(): () => void;
-};
-
-type NamespaceStoreLike = KubeStoreLike & {
-  areAllSelectedImplicitly?: boolean;
-  contextNamespaces?: string[];
 };
 
 const CloudIcon = () => (
@@ -102,32 +96,60 @@ function getStore(apiName: string): KubeStoreLike | undefined {
   return apiManager.getStore(api as never) as KubeStoreLike | undefined;
 }
 
-const namespaceStore = getStore("namespacesApi") as NamespaceStoreLike | undefined;
-const ingressStore = getStore("ingressApi");
-const serviceStore = getStore("serviceApi");
-const deploymentStore = getStore("deploymentApi");
-const podStore = getStore("podsApi") ?? getStore("podApi");
-const endpointsStore = getStore("endpointsApi") ?? getStore("endpointApi");
-const statefulSetStore = getStore("statefulSetApi") ?? getStore("statefulSetsApi");
-const daemonSetStore = getStore("daemonSetApi") ?? getStore("daemonSetsApi");
-const replicaSetStore = getStore("replicaSetApi") ?? getStore("replicaSetsApi");
-const configMapStore = getStore("configMapApi") ?? getStore("configMapsApi");
-const secretStore = getStore("secretApi") ?? getStore("secretsApi");
-const persistentVolumeClaimStore = getStore("persistentVolumeClaimApi") ?? getStore("persistentVolumeClaimsApi");
+type WorkloadStores = {
+  ingresses?: KubeStoreLike;
+  services?: KubeStoreLike;
+  deployments?: KubeStoreLike;
+  pods?: KubeStoreLike;
+  endpoints?: KubeStoreLike;
+  statefulSets?: KubeStoreLike;
+  daemonSets?: KubeStoreLike;
+  replicaSets?: KubeStoreLike;
+  configMaps?: KubeStoreLike;
+  secrets?: KubeStoreLike;
+  persistentVolumeClaims?: KubeStoreLike;
+};
 
-function getSelectedNamespaces(): string[] {
-  if (!namespaceStore) return [];
+function resolveStores(): WorkloadStores {
+  return {
+    ingresses: getStore("ingressApi"),
+    services: getStore("serviceApi"),
+    deployments: getStore("deploymentApi"),
+    pods: getStore("podsApi") ?? getStore("podApi"),
+    endpoints: getStore("endpointsApi") ?? getStore("endpointApi"),
+    statefulSets: getStore("statefulSetApi") ?? getStore("statefulSetsApi"),
+    daemonSets: getStore("daemonSetApi") ?? getStore("daemonSetsApi"),
+    replicaSets: getStore("replicaSetApi") ?? getStore("replicaSetsApi"),
+    configMaps: getStore("configMapApi") ?? getStore("configMapsApi"),
+    secrets: getStore("secretApi") ?? getStore("secretsApi"),
+    persistentVolumeClaims: getStore("persistentVolumeClaimApi") ?? getStore("persistentVolumeClaimsApi"),
+  };
+}
 
-  if (namespaceStore.areAllSelectedImplicitly) {
-    const namespaces = namespaceStore.items as NamespaceLike[];
-    return namespaces.map(ns => ns.getName());
-  }
-
-  return namespaceStore.contextNamespaces ?? [];
+function listStores(stores: WorkloadStores): KubeStoreLike[] {
+  return Object.values(stores).filter((store): store is KubeStoreLike => Boolean(store));
 }
 
 function storeItems<T>(store: KubeStoreLike | undefined): T[] {
   return (store?.items ?? []) as T[];
+}
+
+function namespacesFromStores(stores: WorkloadStores): string[] {
+  const namespaces = new Set<string>();
+
+  listStores(stores).forEach(store => {
+    store.items.forEach(item => {
+      const getNs = (item as { getNs?: () => string }).getNs;
+
+      if (typeof getNs === "function") {
+        const namespace = getNs.call(item);
+
+        if (namespace) namespaces.add(namespace);
+      }
+    });
+  });
+
+  return [...namespaces].sort((left, right) => left.localeCompare(right));
 }
 
 function toReactFlowPosition(position: string | undefined): Position | undefined {
@@ -145,20 +167,20 @@ function toReactFlowPosition(position: string | undefined): Position | undefined
   }
 }
 
-function buildGraph(direction: GraphDirection, visibleKinds: ResourceKind[]): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
+function buildGraph(stores: WorkloadStores, namespaces: string[], direction: GraphDirection, visibleKinds: ResourceKind[]): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   const resources: WorkloadResources = {
-    namespaces: getSelectedNamespaces(),
-    ingresses: storeItems(ingressStore),
-    services: storeItems(serviceStore),
-    pods: storeItems(podStore),
-    endpoints: storeItems(endpointsStore),
-    deployments: storeItems(deploymentStore),
-    statefulSets: storeItems(statefulSetStore),
-    daemonSets: storeItems(daemonSetStore),
-    replicaSets: storeItems(replicaSetStore),
-    configMaps: storeItems(configMapStore),
-    secrets: storeItems(secretStore),
-    persistentVolumeClaims: storeItems(persistentVolumeClaimStore),
+    namespaces,
+    ingresses: storeItems(stores.ingresses),
+    services: storeItems(stores.services),
+    pods: storeItems(stores.pods),
+    endpoints: storeItems(stores.endpoints),
+    deployments: storeItems(stores.deployments),
+    statefulSets: storeItems(stores.statefulSets),
+    daemonSets: storeItems(stores.daemonSets),
+    replicaSets: storeItems(stores.replicaSets),
+    configMaps: storeItems(stores.configMaps),
+    secrets: storeItems(stores.secrets),
+    persistentVolumeClaims: storeItems(stores.persistentVolumeClaims),
   };
 
   const graph = buildWorkloadGraph(resources, { direction, visibleKinds });
@@ -181,37 +203,30 @@ function buildGraph(direction: GraphDirection, visibleKinds: ResourceKind[]): { 
 interface WorkloadFlowProps {
   direction: GraphDirection;
   visibleKinds: ResourceKind[];
+  selectedNamespaces: string[];
+  onNamespacesChange(namespaces: string[]): void;
 }
 
-export const WorkloadFlow = observer(({ direction, visibleKinds }: WorkloadFlowProps) => {
+export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, onNamespacesChange }: WorkloadFlowProps) => {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const stores = useMemo(
-    () => [
-      namespaceStore,
-      ingressStore,
-      serviceStore,
-      deploymentStore,
-      podStore,
-      endpointsStore,
-      statefulSetStore,
-      daemonSetStore,
-      replicaSetStore,
-      configMapStore,
-      secretStore,
-      persistentVolumeClaimStore,
-    ].filter((store): store is KubeStoreLike => Boolean(store)),
-    []
-  );
+  const storesRef = useRef<WorkloadStores>({});
 
   const updateGraph = useCallback(() => {
-    const { nodes: newNodes, edges: newEdges } = buildGraph(direction, visibleKinds);
+    const stores = storesRef.current;
+    const availableNamespaces = namespacesFromStores(stores);
+    const selected = selectedNamespaces.filter(namespace => availableNamespaces.includes(namespace));
+    const activeNamespaces = selected.length > 0 ? selected : availableNamespaces;
+
+    onNamespacesChange(availableNamespaces);
+
+    const { nodes: newNodes, edges: newEdges } = buildGraph(stores, activeNamespaces, direction, visibleKinds);
+
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [direction, visibleKinds]);
+  }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
 
   const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
     const selfLink = node.data.resource?.selfLink;
@@ -227,7 +242,11 @@ export const WorkloadFlow = observer(({ direction, visibleKinds }: WorkloadFlowP
 
     const init = async () => {
       try {
-        if (!namespaceStore || !ingressStore || !serviceStore || !deploymentStore) {
+        const resolvedStores = resolveStores();
+        storesRef.current = resolvedStores;
+        const stores = listStores(resolvedStores);
+
+        if (!resolvedStores.ingresses || !resolvedStores.services || !resolvedStores.deployments) {
           setError("Required Kubernetes stores are not available.");
           setIsReady(true);
           return;
@@ -238,8 +257,6 @@ export const WorkloadFlow = observer(({ direction, visibleKinds }: WorkloadFlowP
         unsubscribers = stores.map(store => store.subscribe());
 
         disposer = autorun(() => {
-          void namespaceStore.contextNamespaces;
-          void namespaceStore.areAllSelectedImplicitly;
           stores.forEach(store => {
             void store.items.length;
           });
@@ -263,7 +280,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds }: WorkloadFlowP
       disposer?.();
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, [stores, updateGraph]);
+  }, [updateGraph]);
 
   if (!isReady) {
     return <Spinner center />;

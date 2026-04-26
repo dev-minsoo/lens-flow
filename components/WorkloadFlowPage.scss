@@ -16,6 +16,46 @@
   gap: 16px;
 }
 
+.WorkloadFlowNamespaceFilters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+
+  button,
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 4px 8px;
+    border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    color: var(--textColorSecondary, #cbd5e1);
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  button {
+    cursor: pointer;
+
+    &.active {
+      color: var(--textColorPrimary, #f8fafc);
+      background: rgba(42, 138, 246, 0.24);
+    }
+  }
+
+  input {
+    width: 12px;
+    height: 12px;
+    margin: 0;
+    accent-color: #2a8af6;
+  }
+}
+
 .WorkloadFlowDirection {
   display: inline-flex;
   align-items: center;

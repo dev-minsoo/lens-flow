@@ -4,7 +4,7 @@ import { WorkloadFlow } from "./WorkloadFlow";
 import { GraphDirection, ResourceKind } from "../graph/types";
 import "./WorkloadFlowPage.scss";
 
-const { TabLayout, NamespaceSelectFilter } = Renderer.Component;
+const { TabLayout } = Renderer.Component;
 
 const resourceOptions: Array<{ kind: ResourceKind; label: string }> = [
   { kind: "Internet", label: "Internet" },
@@ -25,6 +25,8 @@ const defaultVisibleKinds = resourceOptions.map(option => option.kind);
 export const WorkloadFlowPage: React.FC = () => {
   const [direction, setDirection] = useState<GraphDirection>("LR");
   const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
+  const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
+  const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([]);
 
   const toggleKind = (kind: ResourceKind) => {
     setVisibleKinds(current =>
@@ -34,11 +36,37 @@ export const WorkloadFlowPage: React.FC = () => {
     );
   };
 
+  const toggleNamespace = (namespace: string) => {
+    setSelectedNamespaces(current =>
+      current.includes(namespace)
+        ? current.filter(item => item !== namespace)
+        : [...current, namespace]
+    );
+  };
+
   return (
     <TabLayout className="WorkloadFlowPage">
       <header className="WorkloadFlowToolbar">
         <div className="WorkloadFlowToolbarPrimary">
-          <NamespaceSelectFilter id="workload-flow-namespace-filter" />
+          <div className="WorkloadFlowNamespaceFilters" aria-label="Visible namespaces">
+            <button
+              type="button"
+              className={selectedNamespaces.length === 0 ? "active" : ""}
+              onClick={() => setSelectedNamespaces([])}
+            >
+              All namespaces
+            </button>
+            {availableNamespaces.map(namespace => (
+              <label key={namespace}>
+                <input
+                  type="checkbox"
+                  checked={selectedNamespaces.includes(namespace)}
+                  onChange={() => toggleNamespace(namespace)}
+                />
+                <span>{namespace}</span>
+              </label>
+            ))}
+          </div>
           <div className="WorkloadFlowDirection" role="group" aria-label="Graph direction">
             <button
               type="button"
@@ -69,7 +97,12 @@ export const WorkloadFlowPage: React.FC = () => {
           ))}
         </div>
       </header>
-      <WorkloadFlow direction={direction} visibleKinds={visibleKinds} />
+      <WorkloadFlow
+        direction={direction}
+        visibleKinds={visibleKinds}
+        selectedNamespaces={selectedNamespaces}
+        onNamespacesChange={setAvailableNamespaces}
+      />
     </TabLayout>
   );
 };
