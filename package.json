@@ -1,6 +1,6 @@
 {
   "name": "lens-flow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lens extension providing workload flow monitoring with React Flow",
   "main": "dist/main.js",
   "renderer": "dist/renderer.js",
@@ -26,6 +26,7 @@
     "start": "webpack --watch",
     "build": "npm run clean && webpack",
     "clean": "rm -rf ./dist",
+    "prepack": "npm run build",
     "test": "rm -rf ./.test-dist && tsc -p tsconfig.test.json && node --test .test-dist/tests/*.test.js && rm -rf ./.test-dist"
   },
   "dependencies": {
