@@ -26,6 +26,7 @@ import "./WorkloadFlow.scss";
 const { Spinner } = Renderer.Component;
 const apiManager = Renderer.K8sApi.apiManager;
 const k8sApi = Renderer.K8sApi as Record<string, unknown>;
+const NODE_ORIGIN: [number, number] = [0.5, 0.5];
 
 type KubeStoreLike = {
   items: unknown[];
@@ -328,6 +329,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        nodeOrigin={NODE_ORIGIN}
         fitView
         fitViewOptions={{ padding: 0.25 }}
         minZoom={0.1}
