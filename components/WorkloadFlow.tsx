@@ -5,12 +5,10 @@ import ReactFlow, {
   Background,
   Controls,
   Edge,
-  EdgeProps,
   MarkerType,
   MiniMap,
   Node,
   Position,
-  getSmoothStepPath,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Renderer } from "@k8slens/extensions";
@@ -89,64 +87,6 @@ const nodeTypes = {
   custom: CustomNode,
   cloud: CloudNode,
   loadbalancer: LoadBalancerNode,
-};
-
-const WorkloadEdge = ({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  markerEnd,
-  style,
-}: EdgeProps) => {
-  const [edgePath] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-    borderRadius: 18,
-  });
-
-  return (
-    <>
-      <path
-        id={id}
-        className="react-flow__edge-path workload-flow-edge-path"
-        d={edgePath}
-        markerEnd={markerEnd}
-        fill="none"
-        stroke={style?.stroke ?? "#2a8af6"}
-        strokeWidth={style?.strokeWidth ?? 2.25}
-        strokeLinecap="round"
-        strokeDasharray="8 8"
-        strokeDashoffset="32"
-      >
-        <animate
-          attributeName="stroke-dashoffset"
-          from="32"
-          to="0"
-          dur="0.8s"
-          repeatCount="indefinite"
-        />
-      </path>
-      <path
-        className="react-flow__edge-interaction"
-        d={edgePath}
-        fill="none"
-        strokeOpacity="0"
-        strokeWidth={20}
-      />
-    </>
-  );
-};
-
-const edgeTypes = {
-  workload: WorkloadEdge,
 };
 
 function getStore(apiName: string): KubeStoreLike | undefined {
@@ -370,7 +310,6 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.25 }}
         minZoom={0.1}
@@ -381,13 +320,8 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
-        <MiniMap
-          position="bottom-left"
-          pannable
-          zoomable
-          style={{ bottom: 42, left: 24 }}
-        />
-        <Controls position="bottom-right" style={{ bottom: 42, right: 24 }} />
+        <MiniMap position="bottom-left" pannable zoomable />
+        <Controls position="bottom-right" />
       </ReactFlow>
     </div>
   );

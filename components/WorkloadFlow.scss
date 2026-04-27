@@ -1,7 +1,8 @@
 .WorkloadFlow {
-  height: 100%;
+  flex: 1 1 auto;
+  height: auto;
   width: 100%;
-  min-height: 500px;
+  min-height: 0;
   background:
     radial-gradient(circle at 20% 10%, rgba(42, 138, 246, 0.1), transparent 30%),
     radial-gradient(circle at 80% 20%, rgba(174, 83, 186, 0.09), transparent 28%),
@@ -11,19 +12,7 @@
 
   .react-flow {
     background: transparent;
-    padding-bottom: 56px;
-  }
-
-  .react-flow__panel.bottom {
-    bottom: 24px !important;
-  }
-
-  .react-flow__panel.left {
-    left: 24px !important;
-  }
-
-  .react-flow__panel.right {
-    right: 24px !important;
+    height: 100%;
   }
 
   .cloud-node {
@@ -295,11 +284,6 @@
     stroke-linecap: round;
     stroke-dasharray: 8 8 !important;
     filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
-  }
-
-  .workload-flow-edge-path {
-    stroke-dasharray: 8 8 !important;
-    vector-effect: non-scaling-stroke;
   }
 
   .react-flow__edge.animated .react-flow__edge-path {

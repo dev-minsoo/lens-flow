@@ -186,7 +186,7 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     id,
     source,
     target,
-    type: "workload",
+    type: "smoothstep",
     animated: true,
     className: "workload-flow-edge",
     label,
