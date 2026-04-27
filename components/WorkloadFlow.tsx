@@ -28,12 +28,18 @@ const apiManager = Renderer.K8sApi.apiManager;
 const k8sApi = Renderer.K8sApi as Record<string, unknown>;
 const NODE_ORIGIN: [number, number] = [0.5, 0.5];
 const FIT_VIEW_PADDING = 0.38;
-const DEFAULT_FIT_ZOOM_SCALE = 0.86;
 
 type KubeStoreLike = {
   items: unknown[];
   loadAll(): Promise<unknown>;
   subscribe(): () => void;
+};
+
+type KubeObjectWithMetadata = {
+  selfLink?: string;
+  metadata?: {
+    selfLink?: string;
+  };
 };
 
 const CloudIcon = () => (
@@ -229,16 +235,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const fitGraph = useCallback(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        const instance = flowRef.current;
-        if (!instance) return;
-
-        void Promise.resolve(instance.fitView({ padding: FIT_VIEW_PADDING, duration: 120 })).then(() => {
-          const viewport = instance.getViewport();
-          instance.setViewport({
-            ...viewport,
-            zoom: Math.max(0.1, viewport.zoom * DEFAULT_FIT_ZOOM_SCALE),
-          }, { duration: 120 });
-        });
+        flowRef.current?.fitView({ padding: FIT_VIEW_PADDING, duration: 180 });
       });
     });
   }, []);
@@ -259,7 +256,9 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
 
   const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
-    const selfLink = node.data.resource?.selfLink;
+    const resource = node.data.resource as KubeObjectWithMetadata | undefined;
+    const selfLink = resource?.selfLink ?? resource?.metadata?.selfLink;
+
     if (selfLink) {
       Renderer.Navigation.showDetails(selfLink);
     }

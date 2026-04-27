@@ -27,6 +27,7 @@ export const WorkloadFlowPage: React.FC = () => {
   const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
   const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
   const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([]);
+  const [resourceFiltersOpen, setResourceFiltersOpen] = useState(false);
 
   const toggleKind = (kind: ResourceKind) => {
     setVisibleKinds(current =>
@@ -36,37 +37,25 @@ export const WorkloadFlowPage: React.FC = () => {
     );
   };
 
-  const toggleNamespace = (namespace: string) => {
-    setSelectedNamespaces(current =>
-      current.includes(namespace)
-        ? current.filter(item => item !== namespace)
-        : [...current, namespace]
-    );
-  };
-
   return (
     <TabLayout className="WorkloadFlowPage">
       <header className="WorkloadFlowToolbar">
         <div className="WorkloadFlowToolbarPrimary">
-          <div className="WorkloadFlowNamespaceFilters" aria-label="Visible namespaces">
-            <button
-              type="button"
-              className={selectedNamespaces.length === 0 ? "active" : ""}
-              onClick={() => setSelectedNamespaces([])}
+          <label className="WorkloadFlowNamespaceSelect">
+            <span>Namespace</span>
+            <select
+              value={selectedNamespaces[0] ?? "__all__"}
+              onChange={event => {
+                const namespace = event.currentTarget.value;
+                setSelectedNamespaces(namespace === "__all__" ? [] : [namespace]);
+              }}
             >
-              All namespaces
-            </button>
-            {availableNamespaces.map(namespace => (
-              <label key={namespace}>
-                <input
-                  type="checkbox"
-                  checked={selectedNamespaces.includes(namespace)}
-                  onChange={() => toggleNamespace(namespace)}
-                />
-                <span>{namespace}</span>
-              </label>
-            ))}
-          </div>
+              <option value="__all__">All namespaces</option>
+              {availableNamespaces.map(namespace => (
+                <option key={namespace} value={namespace}>{namespace}</option>
+              ))}
+            </select>
+          </label>
           <div className="WorkloadFlowDirection" role="group" aria-label="Graph direction">
             <button
               type="button"
@@ -83,18 +72,39 @@ export const WorkloadFlowPage: React.FC = () => {
               Top to bottom
             </button>
           </div>
-        </div>
-        <div className="WorkloadFlowResourceFilters" aria-label="Visible resources">
-          {resourceOptions.map(option => (
-            <label key={option.kind}>
-              <input
-                type="checkbox"
-                checked={visibleKinds.includes(option.kind)}
-                onChange={() => toggleKind(option.kind)}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
+          <div className="WorkloadFlowFilters">
+            <button
+              type="button"
+              className={resourceFiltersOpen ? "active" : ""}
+              onClick={() => setResourceFiltersOpen(open => !open)}
+            >
+              Resources ({visibleKinds.length})
+            </button>
+            {resourceFiltersOpen && (
+              <div className="WorkloadFlowResourcePanel" role="dialog" aria-label="Visible resources">
+                <div className="WorkloadFlowResourcePanelHeader">
+                  <span>Visible resources</span>
+                  <button type="button" onClick={() => setResourceFiltersOpen(false)}>Close</button>
+                </div>
+                <div className="WorkloadFlowResourceActions">
+                  <button type="button" onClick={() => setVisibleKinds(defaultVisibleKinds)}>All</button>
+                  <button type="button" onClick={() => setVisibleKinds([])}>None</button>
+                </div>
+                <div className="WorkloadFlowResourceFilters">
+                  {resourceOptions.map(option => (
+                    <label key={option.kind}>
+                      <input
+                        type="checkbox"
+                        checked={visibleKinds.includes(option.kind)}
+                        onChange={() => toggleKind(option.kind)}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <WorkloadFlow

@@ -151,6 +151,7 @@ test("shows external load balancer services without ingresses", () => {
 
   assert.ok(graph.nodes.some(node => node.id === "internet"));
   assert.ok(graph.nodes.some(node => node.id === "service-entry:default:api"));
+  assert.equal(graph.nodes.find(node => node.id === "Service:default:api")?.data.health, "healthy");
   assert.ok(graph.edges.some(edge => edge.source === "service-entry:default:api" && edge.target === "Service:default:api"));
   assert.ok(graph.edges.some(edge => edge.source === "Service:default:api" && edge.target === "Deployment:default:api"));
 });

@@ -159,7 +159,7 @@ function podHealth(pod: PodLike): ResourceHealth {
 
 function serviceHealth(service: ServiceLike, pods: PodLike[]): ResourceHealth {
   if (service.spec?.type === "LoadBalancer" && !getServiceAddress(service)) return "pending";
-  if (pods.length === 0) return "warning";
+  if (pods.length === 0) return "healthy";
   return pods.some(pod => podHealth(pod) === "healthy") ? "healthy" : "warning";
 }
 

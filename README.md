@@ -61,10 +61,10 @@ The graph also includes:
 - Namespace and resource kind labels on nodes
 - Edge deduplication for repeated paths
 - Deterministic graph layout
-- Resource visibility checkboxes
+- Namespace selector and resource visibility panel
 - Left-to-right and top-to-bottom layout modes
 - Minimap and fit-view controls
-- Double-click on a resource node to open the Lens details panel
+- Click on a resource node to open the Lens details panel
 
 ## How It Works
 
