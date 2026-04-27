@@ -302,10 +302,11 @@ interface WorkloadFlowProps {
   direction: GraphDirection;
   visibleKinds: ResourceKind[];
   selectedNamespaces: string[];
+  showMiniMap: boolean;
   onNamespacesChange(namespaces: string[]): void;
 }
 
-export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, onNamespacesChange }: WorkloadFlowProps) => {
+export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, showMiniMap, onNamespacesChange }: WorkloadFlowProps) => {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [graphRevision, setGraphRevision] = useState(0);
@@ -435,7 +436,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
-        <MiniMap position="bottom-left" pannable zoomable />
+        {showMiniMap && <MiniMap position="bottom-left" pannable zoomable />}
         <Controls className="WorkloadFlowControls" position="bottom-right" />
       </ReactFlow>
     </div>

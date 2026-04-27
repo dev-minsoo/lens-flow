@@ -32,6 +32,7 @@ export const WorkloadFlowPage: React.FC = () => {
   const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
   const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([]);
   const [resourceFiltersOpen, setResourceFiltersOpen] = useState(false);
+  const [showMiniMap, setShowMiniMap] = useState(true);
 
   const toggleKind = (kind: ResourceKind) => {
     setVisibleKinds(current =>
@@ -79,6 +80,13 @@ export const WorkloadFlowPage: React.FC = () => {
           <div className="WorkloadFlowFilters">
             <button
               type="button"
+              className={showMiniMap ? "active" : ""}
+              onClick={() => setShowMiniMap(visible => !visible)}
+            >
+              MiniMap
+            </button>
+            <button
+              type="button"
               className={resourceFiltersOpen ? "active" : ""}
               onClick={() => setResourceFiltersOpen(open => !open)}
             >
@@ -116,6 +124,7 @@ export const WorkloadFlowPage: React.FC = () => {
         direction={direction}
         visibleKinds={visibleKinds}
         selectedNamespaces={selectedNamespaces}
+        showMiniMap={showMiniMap}
         onNamespacesChange={setAvailableNamespaces}
       />
     </TabLayout>
