@@ -101,9 +101,13 @@ function getServiceAddress(service: ServiceLike): string | undefined {
   return lbIngress?.ip || lbIngress?.hostname;
 }
 
+function labelValue(label: string, value: string | undefined): string | undefined {
+  return value ? `${label} ${value}` : undefined;
+}
+
 function servicePortSummary(service: ServiceLike): string | undefined {
   const ports = service.spec?.ports ?? [];
-  if (ports.length === 0) return service.spec?.type;
+  if (ports.length === 0) return labelValue("Type", service.spec?.type);
 
   const formatted = ports
     .slice(0, 2)
@@ -115,7 +119,7 @@ function servicePortSummary(service: ServiceLike): string | undefined {
     .join(", ");
 
   const suffix = ports.length > 2 ? ` +${ports.length - 2}` : "";
-  return formatted ? `${service.spec?.type ?? "Service"} ${formatted}${suffix}` : service.spec?.type;
+  return formatted ? `Port ${formatted}${suffix}` : labelValue("Type", service.spec?.type);
 }
 
 function workloadHealth(workload: WorkloadLike, kind: ResourceKind): ResourceHealth {
@@ -136,12 +140,12 @@ function workloadReplicaSummary(workload: WorkloadLike, kind: ResourceKind): str
   if (kind === "DaemonSet") {
     const desired = workload.status?.desiredNumberScheduled ?? workload.status?.currentNumberScheduled ?? 0;
     const ready = workload.status?.numberReady ?? 0;
-    return `${ready}/${desired}`;
+    return `Ready ${ready}/${desired}`;
   }
 
   const total = workload.status?.replicas ?? workload.spec?.replicas ?? 0;
   const ready = workload.status?.readyReplicas ?? workload.status?.availableReplicas ?? 0;
-  return `${ready}/${total}`;
+  return `Ready ${ready}/${total}`;
 }
 
 function podHealth(pod: PodLike): ResourceHealth {
@@ -186,7 +190,7 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     id,
     source,
     target,
-    type: "straight",
+    type: "smoothstep",
     animated: true,
     className: "workload-flow-edge",
     label,
@@ -418,7 +422,7 @@ function addConfigMapNode(nodes: Map<string, FlowNode>, configMap: ConfigMapLike
       type: "configmap",
       kind: "ConfigMap",
       namespace: configMap.getNs(),
-      extra: `${dataKeys} keys`,
+      extra: `Keys ${dataKeys}`,
       health: "unknown",
       resource: configMap,
     },
@@ -437,7 +441,7 @@ function addSecretNode(nodes: Map<string, FlowNode>, secret: SecretLike): void {
       type: "secret",
       kind: "Secret",
       namespace: secret.getNs(),
-      extra: secret.type ?? `${dataKeys} keys`,
+      extra: secret.type ? `Type ${secret.type}` : `Keys ${dataKeys}`,
       health: "unknown",
       resource: secret,
     },
@@ -456,7 +460,9 @@ function addPersistentVolumeClaimNode(nodes: Map<string, FlowNode>, pvc: Persist
       type: "persistentvolumeclaim",
       kind: "PersistentVolumeClaim",
       namespace: pvc.getNs(),
-      extra: pvc.status?.capacity?.storage ?? pvc.spec?.resources?.requests?.storage ?? phase,
+      extra: pvc.status?.capacity?.storage || pvc.spec?.resources?.requests?.storage
+        ? `Storage ${pvc.status?.capacity?.storage ?? pvc.spec?.resources?.requests?.storage}`
+        : `Phase ${phase}`,
       health: phase === "Bound" ? "healthy" : phase === "Pending" ? "pending" : "unknown",
       resource: pvc,
     },
@@ -521,7 +527,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         kind: "LoadBalancer",
         detailKind,
         namespace: resource?.getNs(),
-        extra: address ?? "...",
+        extra: address ? (address.startsWith("Port ") ? address : `Address ${address}`) : "Address pending",
         health,
         resource,
       },
@@ -607,7 +613,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
             type: "pod",
             kind: "Pod",
             namespace: pod.getNs(),
-            extra: pod.status?.phase,
+            extra: labelValue("Phase", pod.status?.phase),
             health: podHealth(pod),
             resource: pod,
           },
@@ -633,7 +639,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         type: "ingress",
         kind: "Ingress",
         namespace: ingress.getNs(),
-        extra: ingress.spec?.rules?.map(rule => rule.host).filter(Boolean).slice(0, 2).join(", "),
+        extra: labelValue("Host", ingress.spec?.rules?.map(rule => rule.host).filter(Boolean).slice(0, 2).join(", ")),
         detail: ingress.spec?.rules?.map(rule => rule.host).filter(Boolean).join(", "),
         health: ingressHealth(ingress),
         resource: ingress,
@@ -661,7 +667,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
     if (isExternal) {
       const lbId = `service-entry:${service.getNs()}:${service.getName()}`;
       const label = service.spec?.type === "NodePort" ? "NodePort" : address ? "Service LB" : "Pending LB";
-      addLoadBalancerNode(lbId, label, address, service.spec?.type === "NodePort" ? "healthy" : address ? "healthy" : "pending", "Service", service);
+      addLoadBalancerNode(lbId, label, service.spec?.type === "NodePort" ? servicePortSummary(service) : address, service.spec?.type === "NodePort" ? "healthy" : address ? "healthy" : "pending", "Service", service);
       addEdge(edges, lbId, resourceKey("Service", service), "service");
     }
 
