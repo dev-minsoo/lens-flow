@@ -98,6 +98,7 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
     secret: "secret",
     persistentvolumeclaim: "pvc",
   };
+  const showExtraInMeta = data.type === "ingress";
 
   return (
     <div
@@ -117,9 +118,10 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
         <div className="node-meta">
           <span className="node-kind">{kindLabels[data.type] ?? data.kind}</span>
           {data.namespace && <span className="node-namespace">{data.namespace}</span>}
+          {showExtraInMeta && data.extra && <span className="node-extra" title={data.extra}>{data.extra}</span>}
         </div>
       </div>
-      {data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
+      {!showExtraInMeta && data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
     </div>
   );
 };
@@ -415,7 +417,6 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodesDraggable={false}
         nodesConnectable={false}
         nodesFocusable={false}
-        elementsSelectable={false}
         onInit={instance => {
           flowRef.current = instance;
           fitGraph();
