@@ -510,7 +510,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
     });
   };
 
-  const addLoadBalancerNode = (id: string, label: string, address: string | undefined, health: ResourceHealth, resource?: KubeObjectLike) => {
+  const addLoadBalancerNode = (id: string, label: string, address: string | undefined, health: ResourceHealth, detailKind: ResourceKind, resource?: KubeObjectLike) => {
     addInternetNode();
     addNode(nodes, {
       id,
@@ -519,6 +519,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         label,
         type: "loadbalancer",
         kind: "LoadBalancer",
+        detailKind,
         extra: address ?? "...",
         health,
         resource,
@@ -622,7 +623,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
     const ingressId = resourceKey("Ingress", ingress);
     const address = getIngressAddress(ingress);
 
-    addLoadBalancerNode(lbId, address ? "Ingress LB" : "Pending LB", address, ingressHealth(ingress), ingress);
+    addLoadBalancerNode(lbId, address ? "Ingress LB" : "Pending LB", address, ingressHealth(ingress), "Ingress", ingress);
     addNode(nodes, {
       id: ingressId,
       type: "custom",
@@ -659,7 +660,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
     if (isExternal) {
       const lbId = `service-entry:${service.getNs()}:${service.getName()}`;
       const label = service.spec?.type === "NodePort" ? "NodePort" : address ? "Service LB" : "Pending LB";
-      addLoadBalancerNode(lbId, label, address, service.spec?.type === "NodePort" ? "healthy" : address ? "healthy" : "pending", service);
+      addLoadBalancerNode(lbId, label, address, service.spec?.type === "NodePort" ? "healthy" : address ? "healthy" : "pending", "Service", service);
       addEdge(edges, lbId, resourceKey("Service", service), "service");
     }
 

@@ -74,7 +74,16 @@ const CloudNode = ({ data, sourcePosition }: { data: FlowNodeData; sourcePositio
 );
 
 const LoadBalancerNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeData; sourcePosition?: Position; targetPosition?: Position }) => (
-  <div className={`lb-node is-${data.health}`} title={data.extra}>
+  <div
+    className={`lb-node nodrag is-${data.health}`}
+    role="button"
+    tabIndex={0}
+    title={data.extra}
+    onClick={event => openResourceDetails(data, event)}
+    onKeyDown={event => {
+      if (event.key === "Enter" || event.key === " ") openResourceDetails(data, event);
+    }}
+  >
     <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
     <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
     <div className="lb-content">
@@ -98,7 +107,16 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
   };
 
   return (
-    <div className={`custom-node custom-node-${data.type} is-${data.health}`} title={data.detail ?? data.extra}>
+    <div
+      className={`custom-node nodrag custom-node-${data.type} is-${data.health}`}
+      role="button"
+      tabIndex={0}
+      title={data.detail ?? data.extra}
+      onClick={event => openResourceDetails(data, event)}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") openResourceDetails(data, event);
+      }}
+    >
       <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
       <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
       <div className="node-content">
@@ -232,6 +250,17 @@ function buildDetailsSelfLink(resource: KubeObjectWithMetadata | undefined, fall
     .replace(":name", encodeURIComponent(name));
 }
 
+function openResourceDetails(data: FlowNodeData, event?: React.MouseEvent | React.KeyboardEvent): void {
+  event?.stopPropagation();
+
+  const resource = data.resource as KubeObjectWithMetadata | undefined;
+  const selfLink = buildDetailsSelfLink(resource, data.detailKind ?? data.kind);
+
+  if (selfLink) {
+    Renderer.Navigation.showDetails(selfLink, true);
+  }
+}
+
 function buildGraph(stores: WorkloadStores, namespaces: string[], direction: GraphDirection, visibleKinds: ResourceKind[]): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   const resources: WorkloadResources = {
     namespaces,
@@ -305,12 +334,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
 
   const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
-    const resource = node.data.resource as KubeObjectWithMetadata | undefined;
-    const selfLink = buildDetailsSelfLink(resource, node.data.kind);
-
-    if (selfLink) {
-      Renderer.Navigation.showDetails(selfLink);
-    }
+    openResourceDetails(node.data);
   }, []);
 
   useEffect(() => {

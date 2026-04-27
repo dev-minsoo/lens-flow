@@ -222,6 +222,7 @@ export interface FlowNodeData {
   label: string;
   type: string;
   kind: ResourceKind;
+  detailKind?: ResourceKind;
   namespace?: string;
   extra?: string;
   detail?: string;
