@@ -81,8 +81,13 @@ const LoadBalancerNode = ({ data, sourcePosition, targetPosition }: { data: Flow
     <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
     <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
     <div className="node-content">
-      <div className="node-label" title={data.extra}>{data.extra ?? "..."}</div>
+      <div className="node-label" title={data.label}>{data.label}</div>
+      <div className="node-meta">
+        <span className="node-kind">Load Balancer</span>
+        {data.namespace && <span className="node-namespace">{data.namespace}</span>}
+      </div>
     </div>
+    {data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
   </div>
 );
 
@@ -98,8 +103,6 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
     secret: "secret",
     persistentvolumeclaim: "pvc",
   };
-  const showExtraInMeta = data.type === "ingress";
-
   return (
     <div
       className={`custom-node nodrag workload-card workload-card-${data.type} is-${data.health}`}
@@ -118,10 +121,9 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
         <div className="node-meta">
           <span className="node-kind">{kindLabels[data.type] ?? data.kind}</span>
           {data.namespace && <span className="node-namespace">{data.namespace}</span>}
-          {showExtraInMeta && data.extra && <span className="node-extra" title={data.extra}>{data.extra}</span>}
         </div>
       </div>
-      {!showExtraInMeta && data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
+      {data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
     </div>
   );
 };
@@ -252,7 +254,7 @@ function openResourceDetails(data: FlowNodeData, event?: React.MouseEvent | Reac
   const selfLink = buildDetailsSelfLink(resource, data.detailKind ?? data.kind);
 
   if (selfLink) {
-    Renderer.Navigation.showDetails(selfLink, true);
+    Renderer.Navigation.showDetails(selfLink, false);
   }
 }
 

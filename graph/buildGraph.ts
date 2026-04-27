@@ -520,6 +520,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         type: "loadbalancer",
         kind: "LoadBalancer",
         detailKind,
+        namespace: resource?.getNs(),
         extra: address ?? "...",
         health,
         resource,
