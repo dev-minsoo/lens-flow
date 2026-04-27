@@ -145,10 +145,75 @@
     line-height: 1.2;
 
     input {
+      flex: 0 0 auto;
       width: 12px;
       height: 12px;
       margin: 0;
       accent-color: #2a8af6;
+    }
+
+    .resource-swatch {
+      flex: 0 0 auto;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #2a8af6;
+      box-shadow: 0 0 10px rgba(42, 138, 246, 0.28);
+    }
+
+    .resource-swatch-internet {
+      background: #94a3b8;
+      box-shadow: 0 0 10px rgba(148, 163, 184, 0.26);
+    }
+
+    .resource-swatch-loadbalancer {
+      background: #60a5fa;
+      box-shadow: 0 0 10px rgba(96, 165, 250, 0.28);
+    }
+
+    .resource-swatch-ingress {
+      background: #ae53ba;
+      box-shadow: 0 0 10px rgba(174, 83, 186, 0.28);
+    }
+
+    .resource-swatch-service {
+      background: #2a8af6;
+      box-shadow: 0 0 10px rgba(42, 138, 246, 0.28);
+    }
+
+    .resource-swatch-deployment {
+      background: #10b981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.26);
+    }
+
+    .resource-swatch-statefulset {
+      background: #14b8a6;
+      box-shadow: 0 0 10px rgba(20, 184, 166, 0.26);
+    }
+
+    .resource-swatch-daemonset {
+      background: #84cc16;
+      box-shadow: 0 0 10px rgba(132, 204, 22, 0.24);
+    }
+
+    .resource-swatch-pod {
+      background: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.26);
+    }
+
+    .resource-swatch-configmap {
+      background: #64748b;
+      box-shadow: 0 0 10px rgba(100, 116, 139, 0.24);
+    }
+
+    .resource-swatch-secret {
+      background: #ec4899;
+      box-shadow: 0 0 10px rgba(236, 72, 153, 0.26);
+    }
+
+    .resource-swatch-persistentvolumeclaim {
+      background: #06b6d4;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.26);
     }
 
     span {

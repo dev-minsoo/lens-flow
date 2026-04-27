@@ -22,6 +22,10 @@ const resourceOptions: Array<{ kind: ResourceKind; label: string }> = [
 
 const defaultVisibleKinds = resourceOptions.map(option => option.kind);
 
+function resourceTone(kind: ResourceKind): string {
+  return kind.toLowerCase();
+}
+
 export const WorkloadFlowPage: React.FC = () => {
   const [direction, setDirection] = useState<GraphDirection>("LR");
   const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
@@ -98,6 +102,7 @@ export const WorkloadFlowPage: React.FC = () => {
                         checked={visibleKinds.includes(option.kind)}
                         onChange={() => toggleKind(option.kind)}
                       />
+                      <span className={`resource-swatch resource-swatch-${resourceTone(option.kind)}`} />
                       <span>{option.label}</span>
                     </label>
                   ))}

@@ -75,7 +75,7 @@ const CloudNode = ({ data, sourcePosition }: { data: FlowNodeData; sourcePositio
 
 const LoadBalancerNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeData; sourcePosition?: Position; targetPosition?: Position }) => (
   <div
-    className={`lb-node nodrag is-${data.health}`}
+    className={`lb-node nodrag workload-card workload-card-loadbalancer is-${data.health}`}
     role="button"
     tabIndex={0}
     title={data.extra}
@@ -86,10 +86,14 @@ const LoadBalancerNode = ({ data, sourcePosition, targetPosition }: { data: Flow
   >
     <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
     <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
-    <div className="lb-content">
-      <div className="lb-label">{data.label}</div>
-      {data.extra && <div className="lb-ip">{data.extra}</div>}
+    <div className="node-content">
+      <div className="node-label" title={data.label}>{data.label}</div>
+      <div className="node-meta">
+        <span className="node-kind">lb</span>
+        {data.detailKind && <span className="node-namespace">{data.detailKind}</span>}
+      </div>
     </div>
+    {data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
   </div>
 );
 
@@ -108,7 +112,7 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
 
   return (
     <div
-      className={`custom-node nodrag custom-node-${data.type} is-${data.health}`}
+      className={`custom-node nodrag workload-card workload-card-${data.type} is-${data.health}`}
       role="button"
       tabIndex={0}
       title={data.detail ?? data.extra}
@@ -124,9 +128,9 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
         <div className="node-meta">
           <span className="node-kind">{kindLabels[data.type] ?? data.kind}</span>
           {data.namespace && <span className="node-namespace">{data.namespace}</span>}
-          {data.extra && <span className="node-extra">{data.extra}</span>}
         </div>
       </div>
+      {data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
     </div>
   );
 };

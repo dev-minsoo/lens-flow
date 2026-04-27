@@ -5,7 +5,7 @@
   min-height: 520px;
   background:
     radial-gradient(circle at 20% 10%, rgba(42, 138, 246, 0.1), transparent 30%),
-    radial-gradient(circle at 80% 20%, rgba(174, 83, 186, 0.09), transparent 28%),
+    radial-gradient(circle at 80% 20%, rgba(174, 83, 186, 0.08), transparent 28%),
     var(--mainBackground, #0f1117);
   border-radius: 8px;
   position: relative;
@@ -68,210 +68,152 @@
     }
   }
 
-  .lb-node {
+  .workload-card {
+    --node-accent: #2a8af6;
+    --node-glow: rgba(42, 138, 246, 0.12);
+
     display: flex;
     align-items: center;
+    gap: 12px;
     position: relative;
     width: 220px;
     height: 68px;
     box-sizing: border-box;
-    padding: 14px 16px;
+    padding: 12px 14px 12px 16px;
     color: #f8fafc;
-    background:
-      linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
-      linear-gradient(135deg, rgba(42, 138, 246, 0.85), rgba(174, 83, 186, 0.85)) border-box;
-    border: 1px solid transparent;
-    border-radius: 12px;
+    background: var(--boxBackground, rgba(23, 25, 35, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 4px solid var(--node-accent);
+    border-radius: 8px;
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.04),
-      0 14px 36px rgba(0, 0, 0, 0.34),
-      0 0 26px rgba(42, 138, 246, 0.1);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+      0 0 0 1px rgba(255, 255, 255, 0.025),
+      0 12px 30px rgba(0, 0, 0, 0.3),
+      0 0 24px var(--node-glow);
     cursor: pointer;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
 
-    &:hover {
-      transform: translateY(-2px);
+    &:hover,
+    &:focus-visible {
+      border-color: var(--node-accent);
       filter: brightness(1.08);
       box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.06),
-        0 18px 44px rgba(0, 0, 0, 0.44),
-        0 0 34px rgba(42, 138, 246, 0.16);
-    }
-
-    &.is-pending {
-      background:
-        linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
-        linear-gradient(135deg, #f59e0b, rgba(174, 83, 186, 0.75)) border-box;
-    }
-
-    &.is-error {
-      background:
-        linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
-        linear-gradient(135deg, #ef4444, rgba(174, 83, 186, 0.75)) border-box;
-    }
-
-    .lb-content {
-      .lb-label {
-        font-size: 11px;
-        font-weight: 700;
-        color: #f8fafc;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .lb-ip {
-        font-size: 11px;
-        color: #94a3b8;
-        font-family: monospace;
-      }
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 14px 36px rgba(0, 0, 0, 0.4),
+        0 0 32px var(--node-glow);
+      outline: none;
     }
   }
 
-  .custom-node {
+  .node-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .node-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--textColorPrimary, #f8fafc);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+
+  .node-meta {
     display: flex;
     align-items: center;
-    position: relative;
-    width: 220px;
-    height: 68px;
-    box-sizing: border-box;
-    padding: 14px 16px;
-    color: #f8fafc;
-    background:
-      linear-gradient(var(--boxBackground, #171923), var(--boxBackground, #171923)) padding-box,
-      linear-gradient(135deg, var(--node-accent, #2a8af6), rgba(174, 83, 186, 0.85)) border-box;
-    border: 1px solid transparent;
-    border-radius: 12px;
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.04),
-      0 14px 36px rgba(0, 0, 0, 0.34),
-      0 0 30px var(--node-glow, rgba(42, 138, 246, 0.1));
-    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-    cursor: pointer;
-
-    &:hover {
-      transform: translateY(-2px);
-      filter: brightness(1.08);
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.06),
-        0 18px 44px rgba(0, 0, 0, 0.44),
-        0 0 38px var(--node-glow, rgba(42, 138, 246, 0.16));
-    }
-
-    .node-content {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-
-      .node-label {
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--textColorPrimary, #f8fafc);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-bottom: 4px;
-      }
-
-      .node-meta {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        min-width: 0;
-
-        .node-kind,
-        .node-namespace {
-          font-size: 10px;
-          color: #cbd5e1;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          background: rgba(255, 255, 255, 0.07);
-          padding: 2px 6px;
-          border: 1px solid rgba(255, 255, 255, 0.07);
-          border-radius: 999px;
-        }
-
-        .node-namespace {
-          text-transform: none;
-          letter-spacing: 0;
-          max-width: 72px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .node-extra {
-          font-size: 10px;
-          color: #94a3b8;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 100px;
-        }
-      }
-    }
-
-    &.custom-node-ingress {
-      --node-accent: #ae53ba;
-      --node-glow: rgba(174, 83, 186, 0.18);
-    }
-
-    &.custom-node-service {
-      --node-accent: #2a8af6;
-      --node-glow: rgba(42, 138, 246, 0.18);
-    }
-
-    &.custom-node-deployment {
-      --node-accent: #10b981;
-      --node-glow: rgba(16, 185, 129, 0.16);
-    }
-
-    &.custom-node-statefulset {
-      --node-accent: #14b8a6;
-      --node-glow: rgba(20, 184, 166, 0.16);
-    }
-
-    &.custom-node-daemonset {
-      --node-accent: #84cc16;
-      --node-glow: rgba(132, 204, 22, 0.15);
-    }
-
-    &.custom-node-pod {
-      --node-accent: #f59e0b;
-      --node-glow: rgba(245, 158, 11, 0.16);
-    }
-
-    &.custom-node-configmap {
-      --node-accent: #64748b;
-      --node-glow: rgba(100, 116, 139, 0.16);
-    }
-
-    &.custom-node-secret {
-      --node-accent: #ec4899;
-      --node-glow: rgba(236, 72, 153, 0.16);
-    }
-
-    &.custom-node-persistentvolumeclaim {
-      --node-accent: #06b6d4;
-      --node-glow: rgba(6, 182, 212, 0.16);
-    }
-
-    &.is-warning {
-      --node-accent: #f59e0b;
-      --node-glow: rgba(245, 158, 11, 0.2);
-    }
-
-    &.is-error {
-      --node-accent: #ef4444;
-      --node-glow: rgba(239, 68, 68, 0.2);
-    }
-
-    &.is-pending {
-      --node-accent: #eab308;
-      --node-glow: rgba(234, 179, 8, 0.2);
-    }
+    gap: 6px;
+    min-width: 0;
   }
 
-  // Hide default node styling
+  .node-kind,
+  .node-namespace {
+    min-width: 0;
+    font-size: 10px;
+    line-height: 16px;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    padding: 0 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .node-kind {
+    flex: 0 0 auto;
+    color: #e2e8f0;
+    text-transform: uppercase;
+  }
+
+  .node-namespace {
+    max-width: 76px;
+  }
+
+  .node-side {
+    flex: 0 0 auto;
+    max-width: 78px;
+    color: #94a3b8;
+    font-size: 10px;
+    line-height: 1.25;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .workload-card-loadbalancer {
+    --node-accent: #60a5fa;
+    --node-glow: rgba(96, 165, 250, 0.16);
+  }
+
+  .workload-card-ingress {
+    --node-accent: #ae53ba;
+    --node-glow: rgba(174, 83, 186, 0.16);
+  }
+
+  .workload-card-service {
+    --node-accent: #2a8af6;
+    --node-glow: rgba(42, 138, 246, 0.16);
+  }
+
+  .workload-card-deployment {
+    --node-accent: #10b981;
+    --node-glow: rgba(16, 185, 129, 0.14);
+  }
+
+  .workload-card-statefulset {
+    --node-accent: #14b8a6;
+    --node-glow: rgba(20, 184, 166, 0.14);
+  }
+
+  .workload-card-daemonset {
+    --node-accent: #84cc16;
+    --node-glow: rgba(132, 204, 22, 0.13);
+  }
+
+  .workload-card-pod {
+    --node-accent: #f59e0b;
+    --node-glow: rgba(245, 158, 11, 0.14);
+  }
+
+  .workload-card-configmap {
+    --node-accent: #64748b;
+    --node-glow: rgba(100, 116, 139, 0.14);
+  }
+
+  .workload-card-secret {
+    --node-accent: #ec4899;
+    --node-glow: rgba(236, 72, 153, 0.14);
+  }
+
+  .workload-card-persistentvolumeclaim {
+    --node-accent: #06b6d4;
+    --node-glow: rgba(6, 182, 212, 0.14);
+  }
+
   .react-flow__node {
     background: transparent !important;
     border: none !important;
@@ -280,7 +222,6 @@
     box-shadow: none !important;
   }
 
-  // Edge animation
   @keyframes dash {
     from {
       stroke-dashoffset: 28;
@@ -300,7 +241,6 @@
     animation: dash 0.8s linear infinite !important;
   }
 
-  // Controls styling
   .react-flow__controls {
     background: var(--boxBackground, #252542);
     border: 1px solid var(--borderColor, #3a3a5c);
@@ -335,12 +275,10 @@
     }
   }
 
-  // Background
   .react-flow__background {
     background: var(--mainBackground, #1a1a2e);
   }
 
-  // Minimap (if used)
   .react-flow__minimap {
     background: var(--boxBackground, #252542);
     border: 1px solid var(--borderColor, #3a3a5c);
