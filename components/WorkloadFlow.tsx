@@ -3,7 +3,6 @@ import { observer } from "mobx-react";
 import { autorun } from "mobx";
 import ReactFlow, {
   Background,
-  BaseEdge,
   Controls,
   Edge,
   EdgeProps,
@@ -114,17 +113,35 @@ const WorkloadEdge = ({
   });
 
   return (
-    <BaseEdge
-      id={id}
-      path={edgePath}
-      markerEnd={markerEnd}
-      style={{
-        ...style,
-        strokeDasharray: "8 8",
-        strokeLinecap: "round",
-        animation: "dash 0.8s linear infinite",
-      }}
-    />
+    <>
+      <path
+        id={id}
+        className="react-flow__edge-path workload-flow-edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+        fill="none"
+        stroke={style?.stroke ?? "#2a8af6"}
+        strokeWidth={style?.strokeWidth ?? 2.25}
+        strokeLinecap="round"
+        strokeDasharray="8 8"
+        strokeDashoffset="32"
+      >
+        <animate
+          attributeName="stroke-dashoffset"
+          from="32"
+          to="0"
+          dur="0.8s"
+          repeatCount="indefinite"
+        />
+      </path>
+      <path
+        className="react-flow__edge-interaction"
+        d={edgePath}
+        fill="none"
+        strokeOpacity="0"
+        strokeWidth={20}
+      />
+    </>
   );
 };
 
@@ -364,8 +381,13 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
-        <MiniMap position="bottom-left" pannable zoomable />
-        <Controls position="bottom-right" />
+        <MiniMap
+          position="bottom-left"
+          pannable
+          zoomable
+          style={{ bottom: 42, left: 24 }}
+        />
+        <Controls position="bottom-right" style={{ bottom: 42, right: 24 }} />
       </ReactFlow>
     </div>
   );

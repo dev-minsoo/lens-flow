@@ -11,6 +11,7 @@
 
   .react-flow {
     background: transparent;
+    padding-bottom: 56px;
   }
 
   .react-flow__panel.bottom {
@@ -294,6 +295,11 @@
     stroke-linecap: round;
     stroke-dasharray: 8 8 !important;
     filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
+  }
+
+  .workload-flow-edge-path {
+    stroke-dasharray: 8 8 !important;
+    vector-effect: non-scaling-stroke;
   }
 
   .react-flow__edge.animated .react-flow__edge-path {
