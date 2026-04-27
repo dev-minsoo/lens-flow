@@ -119,8 +119,9 @@ test("builds ingress to service to deployment through pod owner chain", () => {
 
   assert.equal(
     graph.edges.filter(edge => edge.source === "Ingress:default:web" && edge.target === "Service:default:web").length,
-    3
+    1
   );
+  assert.ok(graph.edges.every(edge => edge.source !== "Ingress:default:web" || !edge.label));
   assert.ok(graph.edges.some(edge => edge.source === "Service:default:web" && edge.target === "Deployment:default:web"));
 });
 

@@ -186,7 +186,7 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     id,
     source,
     target,
-    type: "step",
+    type: "straight",
     animated: true,
     className: "workload-flow-edge",
     label,
@@ -646,7 +646,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       if (!service) return;
       const servicePods = podsForService(service, pods, endpoints);
       const serviceId = addServiceNode(service, servicePods);
-      addEdge(edges, ingressId, serviceId, "service", backend.label);
+      addEdge(edges, ingressId, serviceId, "service");
       connectServiceToBackends(service);
     });
   });
