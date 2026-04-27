@@ -279,7 +279,6 @@ function buildGraph(stores: WorkloadStores, namespaces: string[], direction: Gra
   return {
     nodes: graph.nodes.map(node => ({
       ...node,
-      selectable: false,
       sourcePosition: toReactFlowPosition(node.sourcePosition),
       targetPosition: toReactFlowPosition(node.targetPosition),
     })) as Node<FlowNodeData>[],

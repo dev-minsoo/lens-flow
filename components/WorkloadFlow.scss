@@ -76,7 +76,7 @@
     flex-direction: column;
     align-items: stretch;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     position: relative;
     width: 220px;
     height: 88px;
@@ -124,6 +124,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    margin-top: 4px;
     min-width: 0;
   }
 
@@ -136,7 +137,7 @@
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 999px;
-    padding: 0 6px;
+    padding: 0 7px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
