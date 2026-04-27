@@ -13,6 +13,18 @@
     background: transparent;
   }
 
+  .react-flow__panel.bottom {
+    bottom: 24px !important;
+  }
+
+  .react-flow__panel.left {
+    left: 24px !important;
+  }
+
+  .react-flow__panel.right {
+    right: 24px !important;
+  }
+
   .cloud-node {
     display: flex;
     flex-direction: column;
@@ -278,15 +290,13 @@
     }
   }
 
-  .react-flow__edge-path,
-  .react-flow__edge.workload-flow-edge path.react-flow__edge-path {
+  .react-flow__edge-path {
     stroke-linecap: round;
     stroke-dasharray: 8 8 !important;
     filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
   }
 
-  .react-flow__edge.animated .react-flow__edge-path,
-  .react-flow__edge.workload-flow-edge path.react-flow__edge-path {
+  .react-flow__edge.animated .react-flow__edge-path {
     animation: dash 0.8s linear infinite !important;
   }
 

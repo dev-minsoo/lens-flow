@@ -3,12 +3,15 @@ import { observer } from "mobx-react";
 import { autorun } from "mobx";
 import ReactFlow, {
   Background,
+  BaseEdge,
   Controls,
   Edge,
+  EdgeProps,
   MarkerType,
   MiniMap,
   Node,
   Position,
+  getSmoothStepPath,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Renderer } from "@k8slens/extensions";
@@ -87,6 +90,46 @@ const nodeTypes = {
   custom: CustomNode,
   cloud: CloudNode,
   loadbalancer: LoadBalancerNode,
+};
+
+const WorkloadEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+}: EdgeProps) => {
+  const [edgePath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    borderRadius: 18,
+  });
+
+  return (
+    <BaseEdge
+      id={id}
+      path={edgePath}
+      markerEnd={markerEnd}
+      style={{
+        ...style,
+        strokeDasharray: "8 8",
+        strokeLinecap: "round",
+        animation: "dash 0.8s linear infinite",
+      }}
+    />
+  );
+};
+
+const edgeTypes = {
+  workload: WorkloadEdge,
 };
 
 function getStore(apiName: string): KubeStoreLike | undefined {
@@ -310,6 +353,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.25 }}
         minZoom={0.1}
