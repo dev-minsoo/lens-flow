@@ -28,6 +28,7 @@ const apiManager = Renderer.K8sApi.apiManager;
 const k8sApi = Renderer.K8sApi as Record<string, unknown>;
 const NODE_ORIGIN: [number, number] = [0.5, 0.5];
 const FIT_VIEW_PADDING = 0.38;
+const DEFAULT_FIT_ZOOM_SCALE = 0.86;
 
 type KubeStoreLike = {
   items: unknown[];
@@ -228,7 +229,16 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const fitGraph = useCallback(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        flowRef.current?.fitView({ padding: FIT_VIEW_PADDING, duration: 180 });
+        const instance = flowRef.current;
+        if (!instance) return;
+
+        void Promise.resolve(instance.fitView({ padding: FIT_VIEW_PADDING, duration: 120 })).then(() => {
+          const viewport = instance.getViewport();
+          instance.setViewport({
+            ...viewport,
+            zoom: Math.max(0.1, viewport.zoom * DEFAULT_FIT_ZOOM_SCALE),
+          }, { duration: 120 });
+        });
       });
     });
   }, []);
