@@ -245,7 +245,7 @@ export interface FlowEdge {
   id: string;
   source: string;
   target: string;
-  type: "smoothstep";
+  type: "step";
   animated?: boolean;
   className?: string;
   label?: string;

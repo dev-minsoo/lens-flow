@@ -39,10 +39,9 @@ const CloudIcon = () => (
   </svg>
 );
 
-const CloudNode = ({ data }: { data: FlowNodeData }) => (
+const CloudNode = ({ data, sourcePosition }: { data: FlowNodeData; sourcePosition?: Position }) => (
   <div className="cloud-node">
-    <Handle type="source" position={Position.Right} className="workload-flow-handle" />
-    <Handle type="source" position={Position.Bottom} className="workload-flow-handle" />
+    <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
     <CloudIcon />
     <div className="cloud-label">{data.label}</div>
   </div>
@@ -344,7 +343,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
         <MiniMap position="bottom-left" pannable zoomable />
-        <Controls position="bottom-right" />
+        <Controls className="WorkloadFlowControls" position="bottom-right" />
       </ReactFlow>
     </div>
   );
