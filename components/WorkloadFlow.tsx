@@ -75,25 +75,14 @@ const CloudNode = ({ data, sourcePosition }: { data: FlowNodeData; sourcePositio
 
 const LoadBalancerNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeData; sourcePosition?: Position; targetPosition?: Position }) => (
   <div
-    className={`lb-node nodrag workload-card workload-card-loadbalancer is-${data.health}`}
-    role="button"
-    tabIndex={0}
+    className={`lb-node workload-card workload-card-loadbalancer is-${data.health}`}
     title={data.extra}
-    onClick={event => openResourceDetails(data, event)}
-    onKeyDown={event => {
-      if (event.key === "Enter" || event.key === " ") openResourceDetails(data, event);
-    }}
   >
     <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
     <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
     <div className="node-content">
-      <div className="node-label" title={data.label}>{data.label}</div>
-      <div className="node-meta">
-        <span className="node-kind">lb</span>
-        {data.detailKind && <span className="node-namespace">{data.detailKind}</span>}
-      </div>
+      <div className="node-label" title={data.extra}>{data.extra ?? "..."}</div>
     </div>
-    {data.extra && <div className="node-side" title={data.extra}>{data.extra}</div>}
   </div>
 );
 
@@ -303,10 +292,11 @@ interface WorkloadFlowProps {
   visibleKinds: ResourceKind[];
   selectedNamespaces: string[];
   showMiniMap: boolean;
+  showControls: boolean;
   onNamespacesChange(namespaces: string[]): void;
 }
 
-export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, showMiniMap, onNamespacesChange }: WorkloadFlowProps) => {
+export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, showMiniMap, showControls, onNamespacesChange }: WorkloadFlowProps) => {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [graphRevision, setGraphRevision] = useState(0);
@@ -337,10 +327,6 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     setEdges(newEdges);
     setGraphRevision(revision => revision + 1);
   }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
-
-  const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
-    openResourceDetails(node.data);
-  }, []);
 
   useEffect(() => {
     if (nodes.length > 0) fitGraph();
@@ -428,7 +414,8 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         maxZoom={2}
         nodesDraggable={false}
         nodesConnectable={false}
-        onNodeClick={showResourceDetails}
+        nodesFocusable={false}
+        elementsSelectable={false}
         onInit={instance => {
           flowRef.current = instance;
           fitGraph();
@@ -437,7 +424,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
         {showMiniMap && <MiniMap position="bottom-left" pannable zoomable />}
-        <Controls className="WorkloadFlowControls" position="bottom-right" />
+        {showControls && <Controls className="WorkloadFlowControls" position="bottom-right" />}
       </ReactFlow>
     </div>
   );

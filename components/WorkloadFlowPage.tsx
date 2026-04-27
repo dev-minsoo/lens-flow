@@ -26,13 +26,21 @@ function resourceTone(kind: ResourceKind): string {
   return kind.toLowerCase();
 }
 
+const GearIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M12 8.2a3.8 3.8 0 1 1 0 7.6 3.8 3.8 0 0 1 0-7.6Zm0-5.2 1.3 2.1c.5.1 1 .3 1.5.6l2.4-.6 1.8 3.1-1.7 1.8c.1.5.2 1 .2 1.5s-.1 1-.2 1.5l1.7 1.8-1.8 3.1-2.4-.6c-.5.3-1 .5-1.5.6L12 21l-1.3-2.1c-.5-.1-1-.3-1.5-.6l-2.4.6L5 15.8 6.7 14c-.1-.5-.2-1-.2-1.5s.1-1 .2-1.5L5 9.2l1.8-3.1 2.4.6c.5-.3 1-.5 1.5-.6L12 3Z" />
+  </svg>
+);
+
 export const WorkloadFlowPage: React.FC = () => {
   const [direction, setDirection] = useState<GraphDirection>("LR");
   const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
   const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
   const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([]);
   const [resourceFiltersOpen, setResourceFiltersOpen] = useState(false);
-  const [showMiniMap, setShowMiniMap] = useState(true);
+  const [viewSettingsOpen, setViewSettingsOpen] = useState(false);
+  const [showMiniMap, setShowMiniMap] = useState(false);
+  const [showControls, setShowControls] = useState(true);
 
   const toggleKind = (kind: ResourceKind) => {
     setVisibleKinds(current =>
@@ -80,10 +88,11 @@ export const WorkloadFlowPage: React.FC = () => {
           <div className="WorkloadFlowFilters">
             <button
               type="button"
-              className={showMiniMap ? "active" : ""}
-              onClick={() => setShowMiniMap(visible => !visible)}
+              className={`WorkloadFlowSettingsButton ${viewSettingsOpen ? "active" : ""}`}
+              aria-label="View settings"
+              onClick={() => setViewSettingsOpen(open => !open)}
             >
-              MiniMap
+              <GearIcon />
             </button>
             <button
               type="button"
@@ -92,6 +101,26 @@ export const WorkloadFlowPage: React.FC = () => {
             >
               Resources ({visibleKinds.length})
             </button>
+            {viewSettingsOpen && (
+              <div className="WorkloadFlowViewPanel" role="dialog" aria-label="View settings">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showMiniMap}
+                    onChange={() => setShowMiniMap(visible => !visible)}
+                  />
+                  <span>MiniMap</span>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showControls}
+                    onChange={() => setShowControls(visible => !visible)}
+                  />
+                  <span>Controls</span>
+                </label>
+              </div>
+            )}
             {resourceFiltersOpen && (
               <div className="WorkloadFlowResourcePanel" role="dialog" aria-label="Visible resources">
                 <div className="WorkloadFlowResourcePanelHeader">
@@ -125,6 +154,7 @@ export const WorkloadFlowPage: React.FC = () => {
         visibleKinds={visibleKinds}
         selectedNamespaces={selectedNamespaces}
         showMiniMap={showMiniMap}
+        showControls={showControls}
         onNamespacesChange={setAvailableNamespaces}
       />
     </TabLayout>

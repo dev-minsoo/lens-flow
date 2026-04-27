@@ -90,17 +90,59 @@
   }
 }
 
+.WorkloadFlowSettingsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  padding: 0 !important;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+  }
+}
+
+.WorkloadFlowViewPanel,
 .WorkloadFlowResourcePanel {
   position: absolute;
   top: 36px;
   right: 0;
   z-index: 10;
-  width: 280px;
   padding: 12px;
   border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.12));
   border-radius: 8px;
   background: var(--boxBackground, #171923);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+
+.WorkloadFlowViewPanel {
+  display: grid;
+  gap: 8px;
+  width: 150px;
+  right: 102px;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--textColorSecondary, #cbd5e1);
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+
+    input {
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      accent-color: #2a8af6;
+    }
+  }
+}
+
+.WorkloadFlowResourcePanel {
+  width: 280px;
 }
 
 .WorkloadFlowResourcePanelHeader,
