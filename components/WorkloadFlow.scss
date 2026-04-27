@@ -1,18 +1,31 @@
 .WorkloadFlow {
   flex: 1 1 auto;
-  height: auto;
+  height: 100%;
   width: 100%;
-  min-height: 0;
+  min-height: 520px;
   background:
     radial-gradient(circle at 20% 10%, rgba(42, 138, 246, 0.1), transparent 30%),
     radial-gradient(circle at 80% 20%, rgba(174, 83, 186, 0.09), transparent 28%),
     var(--mainBackground, #0f1117);
   border-radius: 8px;
   position: relative;
+  overflow: hidden;
 
   .react-flow {
     background: transparent;
     height: 100%;
+  }
+
+  .react-flow__panel.bottom {
+    bottom: 24px !important;
+  }
+
+  .react-flow__panel.left {
+    left: 24px !important;
+  }
+
+  .react-flow__panel.right {
+    right: 24px !important;
   }
 
   .cloud-node {

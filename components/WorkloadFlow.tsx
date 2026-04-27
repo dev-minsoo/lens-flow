@@ -9,6 +9,7 @@ import ReactFlow, {
   MiniMap,
   Node,
   Position,
+  ReactFlowInstance,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Renderer } from "@k8slens/extensions";
@@ -213,6 +214,13 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const storesRef = useRef<WorkloadStores>({});
+  const flowRef = useRef<ReactFlowInstance<FlowNodeData> | null>(null);
+
+  const fitGraph = useCallback(() => {
+    requestAnimationFrame(() => {
+      flowRef.current?.fitView({ padding: 0.25, duration: 180 });
+    });
+  }, []);
 
   const updateGraph = useCallback(() => {
     const stores = storesRef.current;
@@ -234,6 +242,10 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
       Renderer.Navigation.showDetails(selfLink);
     }
   }, []);
+
+  useEffect(() => {
+    if (nodes.length > 0) fitGraph();
+  }, [direction, edges.length, fitGraph, nodes.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -317,6 +329,10 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodesDraggable={false}
         nodesConnectable={false}
         onNodeDoubleClick={showResourceDetails}
+        onInit={instance => {
+          flowRef.current = instance;
+          fitGraph();
+        }}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
