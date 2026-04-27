@@ -5,6 +5,7 @@ import ReactFlow, {
   Background,
   Controls,
   Edge,
+  Handle,
   MarkerType,
   MiniMap,
   Node,
@@ -40,13 +41,17 @@ const CloudIcon = () => (
 
 const CloudNode = ({ data }: { data: FlowNodeData }) => (
   <div className="cloud-node">
+    <Handle type="source" position={Position.Right} className="workload-flow-handle" />
+    <Handle type="source" position={Position.Bottom} className="workload-flow-handle" />
     <CloudIcon />
     <div className="cloud-label">{data.label}</div>
   </div>
 );
 
-const LoadBalancerNode = ({ data }: { data: FlowNodeData }) => (
+const LoadBalancerNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeData; sourcePosition?: Position; targetPosition?: Position }) => (
   <div className={`lb-node is-${data.health}`} title={data.extra}>
+    <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
+    <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
     <div className="lb-content">
       <div className="lb-label">{data.label}</div>
       {data.extra && <div className="lb-ip">{data.extra}</div>}
@@ -54,7 +59,7 @@ const LoadBalancerNode = ({ data }: { data: FlowNodeData }) => (
   </div>
 );
 
-const CustomNode = ({ data }: { data: FlowNodeData }) => {
+const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeData; sourcePosition?: Position; targetPosition?: Position }) => {
   const kindLabels: Record<string, string> = {
     ingress: "ing",
     service: "svc",
@@ -69,6 +74,8 @@ const CustomNode = ({ data }: { data: FlowNodeData }) => {
 
   return (
     <div className={`custom-node custom-node-${data.type} is-${data.health}`} title={data.detail ?? data.extra}>
+      <Handle type="target" position={targetPosition ?? Position.Left} className="workload-flow-handle" />
+      <Handle type="source" position={sourcePosition ?? Position.Right} className="workload-flow-handle" />
       <div className="node-content">
         <div className="node-label" title={data.label}>{data.label}</div>
         <div className="node-meta">

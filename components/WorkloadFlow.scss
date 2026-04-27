@@ -17,15 +17,26 @@
   }
 
   .react-flow__panel.bottom {
-    bottom: 24px !important;
+    bottom: 56px !important;
   }
 
   .react-flow__panel.left {
-    left: 24px !important;
+    left: 32px !important;
   }
 
   .react-flow__panel.right {
-    right: 24px !important;
+    right: 32px !important;
+  }
+
+  .workload-flow-handle {
+    width: 1px;
+    height: 1px;
+    min-width: 1px;
+    min-height: 1px;
+    border: 0;
+    background: transparent;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .cloud-node {
