@@ -188,12 +188,13 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     target,
     type: "smoothstep",
     animated: true,
+    className: "workload-flow-edge",
     label,
     data: { label },
     style: {
       stroke: color,
       strokeWidth: 2.25,
-      strokeDasharray: "7 7",
+      strokeDasharray: "8 8",
     },
     markerEnd: {
       type: "arrowclosed",

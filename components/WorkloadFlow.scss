@@ -278,14 +278,16 @@
     }
   }
 
-  .react-flow__edge-path {
+  .react-flow__edge-path,
+  .react-flow__edge.workload-flow-edge path.react-flow__edge-path {
     stroke-linecap: round;
-    stroke-dasharray: 7 7;
+    stroke-dasharray: 8 8 !important;
     filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
   }
 
-  .react-flow__edge.animated .react-flow__edge-path {
-    animation: dash 0.9s linear infinite;
+  .react-flow__edge.animated .react-flow__edge-path,
+  .react-flow__edge.workload-flow-edge path.react-flow__edge-path {
+    animation: dash 0.8s linear infinite !important;
   }
 
   // Status pulse animation
