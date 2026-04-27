@@ -27,6 +27,7 @@ const { Spinner } = Renderer.Component;
 const apiManager = Renderer.K8sApi.apiManager;
 const k8sApi = Renderer.K8sApi as Record<string, unknown>;
 const NODE_ORIGIN: [number, number] = [0.5, 0.5];
+const FIT_VIEW_PADDING = 0.38;
 
 type KubeStoreLike = {
   items: unknown[];
@@ -218,6 +219,7 @@ interface WorkloadFlowProps {
 export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, onNamespacesChange }: WorkloadFlowProps) => {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [graphRevision, setGraphRevision] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const storesRef = useRef<WorkloadStores>({});
@@ -225,7 +227,9 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
 
   const fitGraph = useCallback(() => {
     requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.25, duration: 180 });
+      requestAnimationFrame(() => {
+        flowRef.current?.fitView({ padding: FIT_VIEW_PADDING, duration: 180 });
+      });
     });
   }, []);
 
@@ -241,6 +245,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
 
     setNodes(newNodes);
     setEdges(newEdges);
+    setGraphRevision(revision => revision + 1);
   }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
 
   const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
@@ -252,7 +257,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
 
   useEffect(() => {
     if (nodes.length > 0) fitGraph();
-  }, [direction, edges.length, fitGraph, nodes.length]);
+  }, [direction, fitGraph, graphRevision, nodes.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -331,12 +336,12 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodeTypes={nodeTypes}
         nodeOrigin={NODE_ORIGIN}
         fitView
-        fitViewOptions={{ padding: 0.25 }}
+        fitViewOptions={{ padding: FIT_VIEW_PADDING }}
         minZoom={0.1}
         maxZoom={2}
         nodesDraggable={false}
         nodesConnectable={false}
-        onNodeDoubleClick={showResourceDetails}
+        onNodeClick={showResourceDetails}
         onInit={instance => {
           flowRef.current = instance;
           fitGraph();

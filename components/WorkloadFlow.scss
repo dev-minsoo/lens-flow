@@ -47,17 +47,17 @@
   .cloud-node {
     display: flex;
     align-items: center;
-    width: 220px;
-    height: 68px;
+    width: 112px;
+    height: 44px;
     box-sizing: border-box;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 8px;
+    padding: 6px 8px;
     color: #94a3b8;
 
     svg {
       flex: 0 0 auto;
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       opacity: 0.8;
     }
 
@@ -302,6 +302,17 @@
     padding: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+  }
+
+  .react-flow__node.selected {
+    .custom-node,
+    .lb-node {
+      filter: brightness(1.1);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 18px 44px rgba(0, 0, 0, 0.44),
+        0 0 42px var(--node-glow, rgba(42, 138, 246, 0.2));
+    }
   }
 
   // Edge animation
