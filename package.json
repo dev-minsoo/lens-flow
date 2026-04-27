@@ -1,6 +1,6 @@
 {
   "name": "lens-flow",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "Lens extension providing workload flow monitoring with React Flow",
   "main": "dist/main.js",
   "renderer": "dist/renderer.js",

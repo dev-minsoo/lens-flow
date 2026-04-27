@@ -199,22 +199,6 @@
       }
     }
 
-    .node-status {
-      display: flex;
-      align-items: center;
-
-      .status-icon {
-        display: inline-block;
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        font-size: 10px;
-        color: #10b981;
-        background: #10b981;
-        animation: pulse 2s ease-in-out infinite;
-      }
-    }
-
     &.custom-node-ingress {
       --node-accent: #ae53ba;
       --node-glow: rgba(174, 83, 186, 0.18);
@@ -263,35 +247,16 @@
     &.is-warning {
       --node-accent: #f59e0b;
       --node-glow: rgba(245, 158, 11, 0.2);
-
-      .status-icon {
-        background: #f59e0b;
-      }
     }
 
     &.is-error {
       --node-accent: #ef4444;
       --node-glow: rgba(239, 68, 68, 0.2);
-
-      .status-icon {
-        background: #ef4444;
-      }
     }
 
     &.is-pending {
       --node-accent: #eab308;
       --node-glow: rgba(234, 179, 8, 0.2);
-
-      .status-icon {
-        background: #eab308;
-      }
-    }
-
-    &.is-unknown {
-      .status-icon {
-        background: #64748b;
-        animation: none;
-      }
     }
   }
 
@@ -322,16 +287,6 @@
 
   .react-flow__edge.animated .react-flow__edge-path {
     animation: dash 0.8s linear infinite !important;
-  }
-
-  // Status pulse animation
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.5;
-    }
   }
 
   // Controls styling

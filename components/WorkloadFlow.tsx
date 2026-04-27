@@ -36,10 +36,27 @@ type KubeStoreLike = {
 };
 
 type KubeObjectWithMetadata = {
+  kind?: string;
   selfLink?: string;
+  getName?: () => string;
+  getNs?: () => string;
   metadata?: {
+    name?: string;
+    namespace?: string;
     selfLink?: string;
   };
+};
+
+const namespacedDetailPaths: Partial<Record<ResourceKind, string>> = {
+  Ingress: "/apis/networking.k8s.io/v1/namespaces/:namespace/ingresses/:name",
+  Service: "/api/v1/namespaces/:namespace/services/:name",
+  Deployment: "/apis/apps/v1/namespaces/:namespace/deployments/:name",
+  StatefulSet: "/apis/apps/v1/namespaces/:namespace/statefulsets/:name",
+  DaemonSet: "/apis/apps/v1/namespaces/:namespace/daemonsets/:name",
+  Pod: "/api/v1/namespaces/:namespace/pods/:name",
+  ConfigMap: "/api/v1/namespaces/:namespace/configmaps/:name",
+  Secret: "/api/v1/namespaces/:namespace/secrets/:name",
+  PersistentVolumeClaim: "/api/v1/namespaces/:namespace/persistentvolumeclaims/:name",
 };
 
 const CloudIcon = () => (
@@ -91,9 +108,6 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
           {data.namespace && <span className="node-namespace">{data.namespace}</span>}
           {data.extra && <span className="node-extra">{data.extra}</span>}
         </div>
-      </div>
-      <div className="node-status" aria-label={data.health}>
-        <span className="status-icon" />
       </div>
     </div>
   );
@@ -183,6 +197,41 @@ function toReactFlowPosition(position: string | undefined): Position | undefined
   }
 }
 
+function normalizeKind(kind: string | undefined, fallback: ResourceKind): ResourceKind {
+  switch (kind) {
+    case "Ingress":
+    case "Service":
+    case "Deployment":
+    case "StatefulSet":
+    case "DaemonSet":
+    case "Pod":
+    case "ConfigMap":
+    case "Secret":
+    case "PersistentVolumeClaim":
+      return kind;
+    default:
+      return fallback;
+  }
+}
+
+function buildDetailsSelfLink(resource: KubeObjectWithMetadata | undefined, fallbackKind: ResourceKind): string | undefined {
+  if (!resource) return undefined;
+
+  const existing = resource.selfLink ?? resource.metadata?.selfLink;
+  if (existing) return existing;
+
+  const kind = normalizeKind(resource.kind, fallbackKind);
+  const template = namespacedDetailPaths[kind];
+  const namespace = resource.getNs?.() ?? resource.metadata?.namespace;
+  const name = resource.getName?.() ?? resource.metadata?.name;
+
+  if (!template || !namespace || !name) return undefined;
+
+  return template
+    .replace(":namespace", encodeURIComponent(namespace))
+    .replace(":name", encodeURIComponent(name));
+}
+
 function buildGraph(stores: WorkloadStores, namespaces: string[], direction: GraphDirection, visibleKinds: ResourceKind[]): { nodes: Node<FlowNodeData>[]; edges: Edge[] } {
   const resources: WorkloadResources = {
     namespaces,
@@ -257,7 +306,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
 
   const showResourceDetails = useCallback((_: React.MouseEvent, node: Node<FlowNodeData>) => {
     const resource = node.data.resource as KubeObjectWithMetadata | undefined;
-    const selfLink = resource?.selfLink ?? resource?.metadata?.selfLink;
+    const selfLink = buildDetailsSelfLink(resource, node.data.kind);
 
     if (selfLink) {
       Renderer.Navigation.showDetails(selfLink);
