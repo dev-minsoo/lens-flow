@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Renderer } from "@k8slens/extensions";
 import { WorkloadFlow } from "./WorkloadFlow";
 import { GraphDirection, ResourceKind } from "../graph/types";
@@ -33,6 +33,7 @@ const GearIcon = () => (
 );
 
 export const WorkloadFlowPage: React.FC = () => {
+  const filtersRef = useRef<HTMLDivElement | null>(null);
   const [direction, setDirection] = useState<GraphDirection>("LR");
   const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
   const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
@@ -49,6 +50,21 @@ export const WorkloadFlowPage: React.FC = () => {
         : [...current, kind]
     );
   };
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+
+      if (target instanceof Node && filtersRef.current?.contains(target)) return;
+
+      setResourceFiltersOpen(false);
+      setViewSettingsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
 
   return (
     <TabLayout className="WorkloadFlowPage">
@@ -85,19 +101,25 @@ export const WorkloadFlowPage: React.FC = () => {
               Top to bottom
             </button>
           </div>
-          <div className="WorkloadFlowFilters">
+          <div className="WorkloadFlowFilters" ref={filtersRef}>
             <button
               type="button"
               className={`WorkloadFlowSettingsButton ${viewSettingsOpen ? "active" : ""}`}
               aria-label="View settings"
-              onClick={() => setViewSettingsOpen(open => !open)}
+              onClick={() => {
+                setResourceFiltersOpen(false);
+                setViewSettingsOpen(open => !open);
+              }}
             >
               <GearIcon />
             </button>
             <button
               type="button"
               className={resourceFiltersOpen ? "active" : ""}
-              onClick={() => setResourceFiltersOpen(open => !open)}
+              onClick={() => {
+                setViewSettingsOpen(false);
+                setResourceFiltersOpen(open => !open);
+              }}
             >
               Resources ({visibleKinds.length})
             </button>
