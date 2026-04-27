@@ -279,6 +279,7 @@ function buildGraph(stores: WorkloadStores, namespaces: string[], direction: Gra
   return {
     nodes: graph.nodes.map(node => ({
       ...node,
+      selectable: false,
       sourcePosition: toReactFlowPosition(node.sourcePosition),
       targetPosition: toReactFlowPosition(node.targetPosition),
     })) as Node<FlowNodeData>[],
@@ -308,6 +309,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const [error, setError] = useState<string | null>(null);
   const storesRef = useRef<WorkloadStores>({});
   const flowRef = useRef<ReactFlowInstance<FlowNodeData> | null>(null);
+  const graphSignatureRef = useRef("");
 
   const fitGraph = useCallback(() => {
     requestAnimationFrame(() => {
@@ -326,10 +328,28 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     onNamespacesChange(availableNamespaces);
 
     const { nodes: newNodes, edges: newEdges } = buildGraph(stores, activeNamespaces, direction, visibleKinds);
+    const graphSignature = JSON.stringify({
+      nodes: newNodes.map(node => ({
+        id: node.id,
+        type: node.type,
+        x: Math.round(node.position.x),
+        y: Math.round(node.position.y),
+        sourcePosition: node.sourcePosition,
+        targetPosition: node.targetPosition,
+      })),
+      edges: newEdges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+      })),
+    });
 
     setNodes(newNodes);
     setEdges(newEdges);
-    setGraphRevision(revision => revision + 1);
+    if (graphSignature !== graphSignatureRef.current) {
+      graphSignatureRef.current = graphSignature;
+      setGraphRevision(revision => revision + 1);
+    }
   }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
 
   useEffect(() => {
