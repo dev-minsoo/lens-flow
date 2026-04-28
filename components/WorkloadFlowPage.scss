@@ -120,7 +120,7 @@
 .WorkloadFlowViewPanel {
   display: grid;
   gap: 8px;
-  width: 150px;
+  width: 190px;
   right: 102px;
 
   label {
@@ -229,6 +229,11 @@
     .resource-swatch-deployment {
       background: #10b981;
       box-shadow: 0 0 10px rgba(16, 185, 129, 0.26);
+    }
+
+    .resource-swatch-replicaset {
+      background: #22c55e;
+      box-shadow: 0 0 10px rgba(34, 197, 94, 0.26);
     }
 
     .resource-swatch-statefulset {

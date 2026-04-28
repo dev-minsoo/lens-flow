@@ -238,6 +238,115 @@ test("connects workloads to referenced config maps secrets and persistent volume
   assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "PersistentVolumeClaim:default:api-data"));
 });
 
+test("shows standalone config maps secrets and persistent volume claims in selected namespaces", () => {
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    configMaps: [
+      kube<ConfigMapLike>("ConfigMap", "default", "standalone-config", { data: { A: "1" } }),
+      kube<ConfigMapLike>("ConfigMap", "other", "hidden-config", { data: { A: "1" } }),
+    ],
+    secrets: [
+      kube<SecretLike>("Secret", "default", "standalone-secret", { type: "Opaque" }),
+    ],
+    persistentVolumeClaims: [
+      kube<PersistentVolumeClaimLike>("PersistentVolumeClaim", "default", "standalone-data", {
+        status: { phase: "Bound", capacity: { storage: "1Gi" } },
+      }),
+    ],
+  });
+
+  assert.ok(graph.nodes.some(node => node.id === "ConfigMap:default:standalone-config"));
+  assert.ok(graph.nodes.some(node => node.id === "Secret:default:standalone-secret"));
+  assert.ok(graph.nodes.some(node => node.id === "PersistentVolumeClaim:default:standalone-data"));
+  assert.ok(!graph.nodes.some(node => node.id === "ConfigMap:other:hidden-config"));
+});
+
+test("connects deployments to replica sets and owned pods", () => {
+  const deployment = kube<WorkloadLike>("Deployment", "default", "web", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "web" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const replicaSet = kube<ReplicaSetLike>("ReplicaSet", "default", "web-abc", {
+    metadata: {
+      annotations: { "deployment.kubernetes.io/revision": "7" },
+      ownerReferences: [{ kind: "Deployment", name: "web" }],
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const pod = kube<PodLike>("Pod", "default", "web-abc-1", {
+    metadata: {
+      labels: { app: "web" },
+      ownerReferences: [{ kind: "ReplicaSet", name: "web-abc" }],
+    },
+    status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] },
+  });
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    deployments: [deployment],
+    replicaSets: [replicaSet],
+    pods: [pod],
+  });
+
+  assert.ok(graph.nodes.some(node => node.id === "ReplicaSet:default:web-abc"));
+  assert.ok(graph.nodes.some(node => node.id === "Pod:default:web-abc-1"));
+  assert.equal(graph.nodes.find(node => node.id === "ReplicaSet:default:web-abc")?.data.extra, "Rev 7 · Ready 1/1");
+  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:web" && edge.target === "ReplicaSet:default:web-abc"));
+  assert.ok(graph.edges.some(edge => edge.source === "ReplicaSet:default:web-abc" && edge.target === "Pod:default:web-abc-1"));
+
+  const filteredGraph = buildWorkloadGraph(
+    {
+      ...baseResources,
+      deployments: [deployment],
+      replicaSets: [replicaSet],
+      pods: [pod],
+    },
+    {
+      visibleKinds: ["Deployment", "Pod"],
+    }
+  );
+
+  assert.deepEqual(filteredGraph.nodes.map(node => node.data.kind).sort(), ["Deployment", "Pod"]);
+  assert.ok(filteredGraph.edges.some(edge => edge.source === "Deployment:default:web" && edge.target === "Pod:default:web-abc-1"));
+});
+
+test("connects stateful sets to owned pods and generated volume claim templates", () => {
+  const statefulSet = kube<WorkloadLike>("StatefulSet", "default", "redis", {
+    spec: {
+      replicas: 1,
+      volumeClaimTemplates: [{ metadata: { name: "data" } }],
+      template: { metadata: { labels: { app: "redis" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const pod = kube<PodLike>("Pod", "default", "redis-0", {
+    metadata: {
+      labels: { app: "redis" },
+      ownerReferences: [{ kind: "StatefulSet", name: "redis" }],
+    },
+    status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] },
+  });
+  const pvc = kube<PersistentVolumeClaimLike>("PersistentVolumeClaim", "default", "data-redis-0", {
+    status: { phase: "Bound", capacity: { storage: "8Gi" } },
+  });
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    statefulSets: [statefulSet],
+    pods: [pod],
+    persistentVolumeClaims: [pvc],
+  });
+
+  assert.ok(graph.nodes.some(node => node.id === "StatefulSet:default:redis"));
+  assert.ok(graph.nodes.some(node => node.id === "Pod:default:redis-0"));
+  assert.ok(graph.nodes.some(node => node.id === "PersistentVolumeClaim:default:data-redis-0"));
+  assert.ok(graph.edges.some(edge => edge.source === "StatefulSet:default:redis" && edge.target === "Pod:default:redis-0"));
+  assert.ok(graph.edges.some(edge => edge.source === "StatefulSet:default:redis" && edge.target === "PersistentVolumeClaim:default:data-redis-0"));
+});
+
 test("supports top to bottom layout and visible resource filtering", () => {
   const deployment = kube<WorkloadLike>("Deployment", "default", "api", {
     spec: {

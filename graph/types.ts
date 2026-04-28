@@ -4,6 +4,7 @@ export type ResourceKind =
   | "Ingress"
   | "Service"
   | "Deployment"
+  | "ReplicaSet"
   | "StatefulSet"
   | "DaemonSet"
   | "Pod"
@@ -30,6 +31,7 @@ export interface KubeObjectLike {
     name?: string;
     namespace?: string;
     labels?: Record<string, string>;
+    annotations?: Record<string, string>;
     ownerReferences?: OwnerReferenceLike[];
   };
 }
@@ -124,6 +126,11 @@ export interface WorkloadLike extends KubeObjectLike {
   kind?: ResourceKind;
   spec?: {
     replicas?: number;
+    volumeClaimTemplates?: Array<{
+      metadata?: {
+        name?: string;
+      };
+    }>;
     selector?: {
       matchLabels?: Record<string, string>;
     };

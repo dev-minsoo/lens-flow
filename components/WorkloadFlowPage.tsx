@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Renderer } from "@k8slens/extensions";
 import { WorkloadFlow } from "./WorkloadFlow";
 import { GraphDirection, ResourceKind } from "../graph/types";
@@ -12,6 +12,7 @@ const resourceOptions: Array<{ kind: ResourceKind; label: string }> = [
   { kind: "Ingress", label: "Ingress" },
   { kind: "Service", label: "Service" },
   { kind: "Deployment", label: "Deployment" },
+  { kind: "ReplicaSet", label: "ReplicaSet" },
   { kind: "StatefulSet", label: "StatefulSet" },
   { kind: "DaemonSet", label: "DaemonSet" },
   { kind: "Pod", label: "Pod" },
@@ -21,9 +22,25 @@ const resourceOptions: Array<{ kind: ResourceKind; label: string }> = [
 ];
 
 const defaultVisibleKinds = resourceOptions.map(option => option.kind);
+const platformNamespaceNames = new Set([
+  "argocd",
+  "cert-manager",
+  "default",
+  "external-secrets",
+  "ingress-nginx",
+  "istio-system",
+  "linkerd",
+  "logging",
+  "metallb-system",
+  "monitoring",
+]);
 
 function resourceTone(kind: ResourceKind): string {
   return kind.toLowerCase();
+}
+
+function isPlatformNamespace(namespace: string): boolean {
+  return namespace.startsWith("kube-") || platformNamespaceNames.has(namespace);
 }
 
 const GearIcon = () => (
@@ -42,6 +59,30 @@ export const WorkloadFlowPage: React.FC = () => {
   const [viewSettingsOpen, setViewSettingsOpen] = useState(false);
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [showPlatformNamespaces, setShowPlatformNamespaces] = useState(false);
+  const namespaceOptions = useMemo(
+    () => showPlatformNamespaces
+      ? availableNamespaces
+      : availableNamespaces.filter(namespace => !isPlatformNamespace(namespace)),
+    [availableNamespaces, showPlatformNamespaces]
+  );
+  const activeSelectedNamespaces = useMemo(
+    () => selectedNamespaces.filter(namespace => namespaceOptions.includes(namespace)),
+    [namespaceOptions, selectedNamespaces]
+  );
+  const graphNamespaces = useMemo(
+    () => activeSelectedNamespaces.length > 0 ? activeSelectedNamespaces : namespaceOptions,
+    [activeSelectedNamespaces, namespaceOptions]
+  );
+  const selectedNamespaceValue = activeSelectedNamespaces[0] ?? "__apps__";
+
+  const handleNamespacesChange = useCallback((namespaces: string[]) => {
+    setAvailableNamespaces(current => (
+      current.length === namespaces.length && current.every((namespace, index) => namespace === namespaces[index])
+        ? current
+        : namespaces
+    ));
+  }, []);
 
   const toggleKind = (kind: ResourceKind) => {
     setVisibleKinds(current =>
@@ -73,14 +114,15 @@ export const WorkloadFlowPage: React.FC = () => {
           <label className="WorkloadFlowNamespaceSelect">
             <span>Namespace</span>
             <select
-              value={selectedNamespaces[0] ?? "__all__"}
+              value={selectedNamespaceValue}
               onChange={event => {
                 const namespace = event.currentTarget.value;
-                setSelectedNamespaces(namespace === "__all__" ? [] : [namespace]);
+                setSelectedNamespaces(namespace === "__apps__" || namespace === "__all__" ? [] : [namespace]);
               }}
             >
-              <option value="__all__">All namespaces</option>
-              {availableNamespaces.map(namespace => (
+              <option value="__apps__">Application namespaces</option>
+              {showPlatformNamespaces && <option value="__all__">All namespaces</option>}
+              {namespaceOptions.map(namespace => (
                 <option key={namespace} value={namespace}>{namespace}</option>
               ))}
             </select>
@@ -141,6 +183,14 @@ export const WorkloadFlowPage: React.FC = () => {
                   />
                   <span>Controls</span>
                 </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showPlatformNamespaces}
+                    onChange={() => setShowPlatformNamespaces(visible => !visible)}
+                  />
+                  <span>Platform namespaces</span>
+                </label>
               </div>
             )}
             {resourceFiltersOpen && (
@@ -174,10 +224,10 @@ export const WorkloadFlowPage: React.FC = () => {
       <WorkloadFlow
         direction={direction}
         visibleKinds={visibleKinds}
-        selectedNamespaces={selectedNamespaces}
+        selectedNamespaces={graphNamespaces}
         showMiniMap={showMiniMap}
         showControls={showControls}
-        onNamespacesChange={setAvailableNamespaces}
+        onNamespacesChange={handleNamespacesChange}
       />
     </TabLayout>
   );

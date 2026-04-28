@@ -186,6 +186,11 @@
     --node-glow: rgba(16, 185, 129, 0.14);
   }
 
+  .workload-card-replicaset {
+    --node-accent: #22c55e;
+    --node-glow: rgba(34, 197, 94, 0.14);
+  }
+
   .workload-card-statefulset {
     --node-accent: #14b8a6;
     --node-glow: rgba(20, 184, 166, 0.14);

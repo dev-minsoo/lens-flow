@@ -31,7 +31,7 @@ const FIT_VIEW_PADDING = 0.38;
 
 type KubeStoreLike = {
   items: unknown[];
-  loadAll(): Promise<unknown>;
+  loadAll(options?: { namespaces?: string[]; merge?: boolean }): Promise<unknown>;
   subscribe(): () => void;
 };
 
@@ -51,6 +51,7 @@ const namespacedDetailPaths: Partial<Record<ResourceKind, string>> = {
   Ingress: "/apis/networking.k8s.io/v1/namespaces/:namespace/ingresses/:name",
   Service: "/api/v1/namespaces/:namespace/services/:name",
   Deployment: "/apis/apps/v1/namespaces/:namespace/deployments/:name",
+  ReplicaSet: "/apis/apps/v1/namespaces/:namespace/replicasets/:name",
   StatefulSet: "/apis/apps/v1/namespaces/:namespace/statefulsets/:name",
   DaemonSet: "/apis/apps/v1/namespaces/:namespace/daemonsets/:name",
   Pod: "/api/v1/namespaces/:namespace/pods/:name",
@@ -96,6 +97,7 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: { data: FlowNodeDa
     ingress: "Ingress",
     service: "Service",
     deployment: "Deployment",
+    replicaset: "ReplicaSet",
     statefulset: "StatefulSet",
     daemonset: "DaemonSet",
     pod: "Pod",
@@ -142,6 +144,7 @@ function getStore(apiName: string): KubeStoreLike | undefined {
 }
 
 type WorkloadStores = {
+  namespaces?: KubeStoreLike;
   ingresses?: KubeStoreLike;
   services?: KubeStoreLike;
   deployments?: KubeStoreLike;
@@ -157,6 +160,7 @@ type WorkloadStores = {
 
 function resolveStores(): WorkloadStores {
   return {
+    namespaces: getStore("namespaceApi") ?? getStore("namespacesApi"),
     ingresses: getStore("ingressApi"),
     services: getStore("serviceApi"),
     deployments: getStore("deploymentApi"),
@@ -167,12 +171,16 @@ function resolveStores(): WorkloadStores {
     replicaSets: getStore("replicaSetApi") ?? getStore("replicaSetsApi"),
     configMaps: getStore("configMapApi") ?? getStore("configMapsApi"),
     secrets: getStore("secretApi") ?? getStore("secretsApi"),
-    persistentVolumeClaims: getStore("persistentVolumeClaimApi") ?? getStore("persistentVolumeClaimsApi"),
+    persistentVolumeClaims: getStore("pvcApi") ?? getStore("persistentVolumeClaimApi") ?? getStore("persistentVolumeClaimsApi"),
   };
 }
 
 function listStores(stores: WorkloadStores): KubeStoreLike[] {
   return Object.values(stores).filter((store): store is KubeStoreLike => Boolean(store));
+}
+
+function listNamespacedStores(stores: WorkloadStores): KubeStoreLike[] {
+  return listStores({ ...stores, namespaces: undefined });
 }
 
 function storeItems<T>(store: KubeStoreLike | undefined): T[] {
@@ -181,6 +189,15 @@ function storeItems<T>(store: KubeStoreLike | undefined): T[] {
 
 function namespacesFromStores(stores: WorkloadStores): string[] {
   const namespaces = new Set<string>();
+
+  stores.namespaces?.items.forEach(item => {
+    const getName = (item as { getName?: () => string }).getName;
+    const name = typeof getName === "function"
+      ? getName.call(item)
+      : (item as { metadata?: { name?: string } }).metadata?.name;
+
+    if (name) namespaces.add(name);
+  });
 
   listStores(stores).forEach(store => {
     store.items.forEach(item => {
@@ -217,6 +234,7 @@ function normalizeKind(kind: string | undefined, fallback: ResourceKind): Resour
     case "Ingress":
     case "Service":
     case "Deployment":
+    case "ReplicaSet":
     case "StatefulSet":
     case "DaemonSet":
     case "Pod":
@@ -351,6 +369,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         const resolvedStores = resolveStores();
         storesRef.current = resolvedStores;
         const stores = listStores(resolvedStores);
+        const namespacedStores = listNamespacedStores(resolvedStores);
 
         if (!resolvedStores.ingresses || !resolvedStores.services || !resolvedStores.deployments) {
           setError("Required Kubernetes stores are not available.");
@@ -358,7 +377,14 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
           return;
         }
 
-        await Promise.all(stores.map(store => store.loadAll()));
+        await resolvedStores.namespaces?.loadAll();
+
+        const clusterNamespaces = namespacesFromStores({ namespaces: resolvedStores.namespaces });
+        if (clusterNamespaces.length > 0) {
+          await Promise.all(namespacedStores.map(store => store.loadAll({ namespaces: clusterNamespaces, merge: true })));
+        } else {
+          await Promise.all(namespacedStores.map(store => store.loadAll()));
+        }
 
         unsubscribers = stores.map(store => store.subscribe());
 

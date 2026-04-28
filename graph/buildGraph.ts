@@ -24,6 +24,7 @@ const EDGE_COLORS: Record<string, string> = {
   ingress: "#8b5cf6",
   service: "#0ea5e9",
   workload: "#10b981",
+  replicaset: "#22c55e",
   pod: "#f59e0b",
   config: "#64748b",
   secret: "#ec4899",
@@ -38,11 +39,12 @@ const KIND_RANK: Record<ResourceKind, number> = {
   Deployment: 4,
   StatefulSet: 4,
   DaemonSet: 4,
-  Pod: 5,
+  ReplicaSet: 5,
   ConfigMap: 5,
   Secret: 5,
   PersistentVolumeClaim: 5,
-  Unknown: 6,
+  Pod: 6,
+  Unknown: 7,
 };
 
 const NODE_WIDTH = 220;
@@ -148,6 +150,13 @@ function workloadReplicaSummary(workload: WorkloadLike, kind: ResourceKind): str
   return `Ready ${ready}/${total}`;
 }
 
+function replicaSetSummary(replicaSet: ReplicaSetLike): string {
+  const revision = replicaSet.metadata?.annotations?.["deployment.kubernetes.io/revision"];
+  const ready = workloadReplicaSummary(replicaSet, "ReplicaSet");
+
+  return revision ? `Rev ${revision} · ${ready}` : ready;
+}
+
 function podHealth(pod: PodLike): ResourceHealth {
   if (pod.status?.phase === "Pending") return "pending";
   if (pod.status?.phase === "Failed") return "error";
@@ -245,7 +254,7 @@ function podOwnerKey(pod: PodLike, replicaSetOwners: Map<string, { kind: Resourc
 
   if (owner.kind === "ReplicaSet") {
     const deployment = replicaSetOwners.get(objectKey("Unknown", pod.getNs(), owner.name));
-    return deployment ? objectKey(deployment.kind, pod.getNs(), deployment.name) : objectKey("Unknown", pod.getNs(), owner.name);
+    return deployment ? objectKey(deployment.kind, pod.getNs(), deployment.name) : objectKey("ReplicaSet", pod.getNs(), owner.name);
   }
 
   if (owner.kind === "Deployment" || owner.kind === "StatefulSet" || owner.kind === "DaemonSet") {
@@ -351,6 +360,18 @@ function collectWorkloadRefs(workload: WorkloadLike): {
   };
 }
 
+function isPodOwnedByWorkload(pod: PodLike, entry: WorkloadEntry, replicaSetOwners: Map<string, { kind: ResourceKind; name: string }>): boolean {
+  return podOwnerKey(pod, replicaSetOwners) === objectKey(entry.kind, entry.workload.getNs(), entry.workload.getName());
+}
+
+function pvcBelongsToStatefulSet(pvc: PersistentVolumeClaimLike, statefulSet: WorkloadLike): boolean {
+  const claimNames = statefulSet.spec?.volumeClaimTemplates
+    ?.map(template => template.metadata?.name)
+    .filter((name): name is string => Boolean(name)) ?? [];
+
+  return claimNames.some(name => pvc.getName().startsWith(`${name}-${statefulSet.getName()}-`));
+}
+
 function connectionPositions(direction: GraphDirection): Pick<FlowNode, "sourcePosition" | "targetPosition"> {
   return direction === "TB"
     ? { sourcePosition: "bottom", targetPosition: "top" }
@@ -359,26 +380,56 @@ function connectionPositions(direction: GraphDirection): Pick<FlowNode, "sourceP
 
 function layout(nodes: FlowNode[], edges: FlowEdge[], direction: GraphDirection): FlowNode[] {
   const incoming = new Map<string, number>();
-  const outgoing = new Map<string, string[]>();
+  const incomingSources = new Map<string, string[]>();
+  const nodeRanks = new Map<string, number>();
   edges.forEach(edge => {
     incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1);
-    outgoing.set(edge.source, [...(outgoing.get(edge.source) ?? []), edge.target]);
+    incomingSources.set(edge.target, [...(incomingSources.get(edge.target) ?? []), edge.source]);
   });
 
   const byRank = new Map<number, FlowNode[]>();
   nodes.forEach(node => {
     const rank = KIND_RANK[node.data.kind] ?? KIND_RANK.Unknown;
+    nodeRanks.set(node.id, rank);
     byRank.set(rank, [...(byRank.get(rank) ?? []), node]);
+  });
+
+  const orderById = new Map<string, number>();
+  const orderedByRank = new Map<number, FlowNode[]>();
+  const ranks = Array.from(byRank.keys()).sort((left, right) => left - right);
+
+  ranks.forEach(rank => {
+    const rankNodes = byRank.get(rank) ?? [];
+    const ordered = [...rankNodes].sort((left, right) => {
+      const leftParentOrders = (incomingSources.get(left.id) ?? [])
+        .filter(source => (nodeRanks.get(source) ?? -1) < rank)
+        .map(source => orderById.get(source))
+        .filter((order): order is number => order !== undefined);
+      const rightParentOrders = (incomingSources.get(right.id) ?? [])
+        .filter(source => (nodeRanks.get(source) ?? -1) < rank)
+        .map(source => orderById.get(source))
+        .filter((order): order is number => order !== undefined);
+      const leftScore = leftParentOrders.length > 0
+        ? leftParentOrders.reduce((sum, order) => sum + order, 0) / leftParentOrders.length
+        : Number.POSITIVE_INFINITY;
+      const rightScore = rightParentOrders.length > 0
+        ? rightParentOrders.reduce((sum, order) => sum + order, 0) / rightParentOrders.length
+        : Number.POSITIVE_INFINITY;
+
+      if (leftScore !== rightScore) return leftScore - rightScore;
+
+      const diff = (incoming.get(right.id) ?? 0) - (incoming.get(left.id) ?? 0);
+      if (diff !== 0) return diff;
+      return left.data.label.localeCompare(right.data.label);
+    });
+
+    ordered.forEach((node, index) => orderById.set(node.id, index));
+    orderedByRank.set(rank, ordered);
   });
 
   return nodes.map(node => {
     const rank = KIND_RANK[node.data.kind] ?? KIND_RANK.Unknown;
-    const rankNodes = byRank.get(rank) ?? [];
-    const ordered = [...rankNodes].sort((a, b) => {
-      const diff = (incoming.get(b.id) ?? 0) - (incoming.get(a.id) ?? 0);
-      if (diff !== 0) return diff;
-      return a.data.label.localeCompare(b.data.label);
-    });
+    const ordered = orderedByRank.get(rank) ?? [];
     const index = ordered.findIndex(item => item.id === node.id);
     const offset = -((ordered.length - 1) * ROW_GAP) / 2;
     const position = direction === "TB"
@@ -406,6 +457,24 @@ function addWorkloadNode(nodes: Map<string, FlowNode>, entry: WorkloadEntry): vo
       extra: workloadReplicaSummary(workload, kind),
       health: workloadHealth(workload, kind),
       resource: workload,
+    },
+    sourcePosition: "right",
+    targetPosition: "left",
+  });
+}
+
+function addReplicaSetNode(nodes: Map<string, FlowNode>, replicaSet: ReplicaSetLike): void {
+  addNode(nodes, {
+    id: resourceKey("ReplicaSet", replicaSet),
+    type: "custom",
+    data: {
+      label: replicaSet.getName(),
+      type: "replicaset",
+      kind: "ReplicaSet",
+      namespace: replicaSet.getNs(),
+      extra: replicaSetSummary(replicaSet),
+      health: workloadHealth(replicaSet, "ReplicaSet"),
+      resource: replicaSet,
     },
     sourcePosition: "right",
     targetPosition: "left",
@@ -471,15 +540,83 @@ function addPersistentVolumeClaimNode(nodes: Map<string, FlowNode>, pvc: Persist
   });
 }
 
+function addPodNode(nodes: Map<string, FlowNode>, pod: PodLike): void {
+  addNode(nodes, {
+    id: resourceKey("Pod", pod),
+    type: "custom",
+    data: {
+      label: pod.getName(),
+      type: "pod",
+      kind: "Pod",
+      namespace: pod.getNs(),
+      extra: labelValue("Phase", pod.status?.phase),
+      health: podHealth(pod),
+      resource: pod,
+    },
+    sourcePosition: "right",
+    targetPosition: "left",
+  });
+}
+
 function filterVisibleKinds(graph: WorkloadGraph, visibleKinds: ResourceKind[] | undefined): WorkloadGraph {
   if (!visibleKinds) return graph;
 
   const visible = new Set(visibleKinds);
   const nodes = graph.nodes.filter(node => visible.has(node.data.kind));
   const nodeIds = new Set(nodes.map(node => node.id));
-  const edges = graph.edges.filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+  const hiddenNodeIds = new Set(graph.nodes.filter(node => !nodeIds.has(node.id)).map(node => node.id));
+  const edgesBySource = new Map<string, FlowEdge[]>();
+  const edges = new Map<string, FlowEdge>();
 
-  return { nodes, edges };
+  graph.edges.forEach(edge => {
+    edgesBySource.set(edge.source, [...(edgesBySource.get(edge.source) ?? []), edge]);
+  });
+
+  const addVisibleEdge = (edge: FlowEdge, source = edge.source, target = edge.target) => {
+    if (source === target || !nodeIds.has(source) || !nodeIds.has(target)) return;
+
+    const id = edge.source === source && edge.target === target
+      ? edge.id
+      : `${source}->${target}:bridge`;
+
+    if (edges.has(id)) return;
+    edges.set(id, {
+      ...edge,
+      id,
+      source,
+      target,
+      label: edge.source === source && edge.target === target ? edge.label : undefined,
+      data: edge.source === source && edge.target === target ? edge.data : undefined,
+    });
+  };
+
+  const connectThroughHidden = (source: string, current: string, templateEdge: FlowEdge, visited: Set<string>) => {
+    if (visited.has(current)) return;
+    visited.add(current);
+
+    if (nodeIds.has(current)) {
+      addVisibleEdge(templateEdge, source, current);
+      return;
+    }
+
+    if (!hiddenNodeIds.has(current)) return;
+
+    (edgesBySource.get(current) ?? []).forEach(edge => {
+      connectThroughHidden(source, edge.target, edge, new Set(visited));
+    });
+  };
+
+  graph.edges.forEach(edge => {
+    if (!nodeIds.has(edge.source)) return;
+    if (nodeIds.has(edge.target)) {
+      addVisibleEdge(edge);
+      return;
+    }
+
+    connectThroughHidden(edge.source, edge.target, edge, new Set());
+  });
+
+  return { nodes, edges: Array.from(edges.values()) };
 }
 
 export function buildWorkloadGraph(resources: WorkloadResources, options: WorkloadGraphOptions = {}): WorkloadGraph {
@@ -496,7 +633,9 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
   const replicaSetOwners = buildReplicaSetOwnerIndex(resources.replicaSets);
   const configMapIndex = buildResourceIndex("ConfigMap", (resources.configMaps ?? []).filter(item => namespaces.has(item.getNs())));
   const secretIndex = buildResourceIndex("Secret", (resources.secrets ?? []).filter(item => namespaces.has(item.getNs())));
-  const pvcIndex = buildResourceIndex("PersistentVolumeClaim", (resources.persistentVolumeClaims ?? []).filter(item => namespaces.has(item.getNs())));
+  const pvcs = (resources.persistentVolumeClaims ?? []).filter(item => namespaces.has(item.getNs()));
+  const pvcIndex = buildResourceIndex("PersistentVolumeClaim", pvcs);
+  const replicaSets = (resources.replicaSets ?? []).filter(replicaSet => namespaces.has(replicaSet.getNs()));
   const serviceIdsSeen = new Set<string>();
   const workloadIdsSeen = new Set<string>();
 
@@ -586,6 +725,27 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       addPersistentVolumeClaimNode(nodes, pvc);
       addEdge(edges, workloadId, pvcId, "storage", "volume");
     });
+
+    if (kind === "StatefulSet") {
+      pvcs
+        .filter(pvc => pvc.getNs() === workload.getNs() && pvcBelongsToStatefulSet(pvc, workload))
+        .forEach(pvc => {
+          addPersistentVolumeClaimNode(nodes, pvc);
+          addEdge(edges, workloadId, resourceKey("PersistentVolumeClaim", pvc), "storage", "volume");
+        });
+    }
+  };
+
+  const connectOwnedPods = (entry: WorkloadEntry) => {
+    const workloadId = resourceKey(entry.kind, entry.workload);
+
+    pods
+      .filter(pod => isPodOwnedByWorkload(pod, entry, replicaSetOwners))
+      .slice(0, 12)
+      .forEach(pod => {
+        addPodNode(nodes, pod);
+        addEdge(edges, workloadId, resourceKey("Pod", pod), "pod");
+      });
   };
 
   const connectServiceToBackends = (service: ServiceLike) => {
@@ -599,28 +759,14 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       workloadIdsSeen.add(workloadId);
       addWorkloadNode(nodes, entry);
       connectWorkloadReferences(entry);
+      if (kind === "StatefulSet" || kind === "DaemonSet") connectOwnedPods(entry);
       addEdge(edges, serviceId, workloadId, "workload");
     });
 
     if (workloads.length === 0) {
       servicePods.slice(0, 12).forEach(pod => {
-        const podId = resourceKey("Pod", pod);
-        addNode(nodes, {
-          id: podId,
-          type: "custom",
-          data: {
-            label: pod.getName(),
-            type: "pod",
-            kind: "Pod",
-            namespace: pod.getNs(),
-            extra: labelValue("Phase", pod.status?.phase),
-            health: podHealth(pod),
-            resource: pod,
-          },
-          sourcePosition: "right",
-          targetPosition: "left",
-        });
-        addEdge(edges, serviceId, podId, "pod");
+        addPodNode(nodes, pod);
+        addEdge(edges, serviceId, resourceKey("Pod", pod), "pod");
       });
     }
   };
@@ -684,7 +830,32 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       if (workloadIdsSeen.has(workloadId)) return;
       addWorkloadNode(nodes, entry);
       connectWorkloadReferences(entry);
+      if (kind === "StatefulSet" || kind === "DaemonSet") connectOwnedPods(entry);
     });
+
+  replicaSets.forEach(replicaSet => {
+    addReplicaSetNode(nodes, replicaSet);
+
+    const owner = replicaSet.metadata?.ownerReferences?.find(ref => ref.kind === "Deployment" && ref.name);
+    if (owner?.name) {
+      const ownerId = objectKey("Deployment", replicaSet.getNs(), owner.name);
+      if (nodes.has(ownerId)) {
+        addEdge(edges, ownerId, resourceKey("ReplicaSet", replicaSet), "replicaset");
+      }
+    }
+
+    pods
+      .filter(pod => pod.metadata?.ownerReferences?.some(ref => ref.kind === "ReplicaSet" && ref.name === replicaSet.getName()))
+      .slice(0, 12)
+      .forEach(pod => {
+        addPodNode(nodes, pod);
+        addEdge(edges, resourceKey("ReplicaSet", replicaSet), resourceKey("Pod", pod), "pod");
+      });
+  });
+
+  Array.from(configMapIndex.values()).forEach(configMap => addConfigMapNode(nodes, configMap));
+  Array.from(secretIndex.values()).forEach(secret => addSecretNode(nodes, secret));
+  Array.from(pvcIndex.values()).forEach(pvc => addPersistentVolumeClaimNode(nodes, pvc));
 
   const laidOutNodes = layout(Array.from(nodes.values()), Array.from(edges.values()), direction).map(node => ({
     ...node,
