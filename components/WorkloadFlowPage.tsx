@@ -25,7 +25,6 @@ const defaultVisibleKinds = resourceOptions.map(option => option.kind);
 const platformNamespaceNames = new Set([
   "argocd",
   "cert-manager",
-  "default",
   "external-secrets",
   "ingress-nginx",
   "istio-system",
@@ -54,27 +53,23 @@ export const WorkloadFlowPage: React.FC = () => {
   const [direction, setDirection] = useState<GraphDirection>("LR");
   const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
   const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
-  const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([]);
   const [resourceFiltersOpen, setResourceFiltersOpen] = useState(false);
   const [viewSettingsOpen, setViewSettingsOpen] = useState(false);
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showPlatformNamespaces, setShowPlatformNamespaces] = useState(false);
+  const [selectedNamespace, setSelectedNamespace] = useState("default");
   const namespaceOptions = useMemo(
     () => showPlatformNamespaces
       ? availableNamespaces
       : availableNamespaces.filter(namespace => !isPlatformNamespace(namespace)),
     [availableNamespaces, showPlatformNamespaces]
   );
-  const activeSelectedNamespaces = useMemo(
-    () => selectedNamespaces.filter(namespace => namespaceOptions.includes(namespace)),
-    [namespaceOptions, selectedNamespaces]
-  );
   const graphNamespaces = useMemo(
-    () => activeSelectedNamespaces.length > 0 ? activeSelectedNamespaces : namespaceOptions,
-    [activeSelectedNamespaces, namespaceOptions]
+    () => availableNamespaces.includes(selectedNamespace) ? [selectedNamespace] : [],
+    [availableNamespaces, selectedNamespace]
   );
-  const selectedNamespaceValue = activeSelectedNamespaces[0] ?? "__apps__";
+  const selectedNamespaceValue = availableNamespaces.includes(selectedNamespace) ? selectedNamespace : "";
 
   const handleNamespacesChange = useCallback((namespaces: string[]) => {
     setAvailableNamespaces(current => (
@@ -117,11 +112,10 @@ export const WorkloadFlowPage: React.FC = () => {
               value={selectedNamespaceValue}
               onChange={event => {
                 const namespace = event.currentTarget.value;
-                setSelectedNamespaces(namespace === "__apps__" || namespace === "__all__" ? [] : [namespace]);
+                if (namespace) setSelectedNamespace(namespace);
               }}
             >
-              <option value="__apps__">Application namespaces</option>
-              {showPlatformNamespaces && <option value="__all__">All namespaces</option>}
+              {!availableNamespaces.includes(selectedNamespace) && <option value="">default</option>}
               {namespaceOptions.map(namespace => (
                 <option key={namespace} value={namespace}>{namespace}</option>
               ))}

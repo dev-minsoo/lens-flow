@@ -340,7 +340,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     const stores = storesRef.current;
     const availableNamespaces = namespacesFromStores(stores);
     const selected = selectedNamespaces.filter(namespace => availableNamespaces.includes(namespace));
-    const activeNamespaces = selected.length > 0 ? selected : availableNamespaces;
+    const activeNamespaces = selected;
 
     onNamespacesChange(availableNamespaces);
 
