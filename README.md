@@ -1,7 +1,6 @@
 # Lens Flow
 
 [![Release](https://img.shields.io/github/v/release/dev-minsoo/lens-flow?display_name=tag)](https://github.com/dev-minsoo/lens-flow/releases)
-[![CI](https://img.shields.io/github/actions/workflow/status/dev-minsoo/lens-flow/ci.yml?branch=main&label=ci)](https://github.com/dev-minsoo/lens-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/dev-minsoo/lens-flow)](./LICENSE.md)
 
 > Add your screenshot or GIF here near the top of the README.

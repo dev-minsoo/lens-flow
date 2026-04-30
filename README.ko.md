@@ -1,7 +1,6 @@
 # Lens Flow
 
 [![Release](https://img.shields.io/github/v/release/dev-minsoo/lens-flow?display_name=tag)](https://github.com/dev-minsoo/lens-flow/releases)
-[![CI](https://img.shields.io/github/actions/workflow/status/dev-minsoo/lens-flow/ci.yml?branch=main&label=ci)](https://github.com/dev-minsoo/lens-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/dev-minsoo/lens-flow)](./LICENSE.md)
 
 > README 상단에 스크린샷이나 GIF를 넣으면 좋습니다.
