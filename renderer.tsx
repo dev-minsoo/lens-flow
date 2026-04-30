@@ -3,10 +3,6 @@ import { Renderer } from "@k8slens/extensions";
 import { WorkloadFlowPage } from "./components";
 
 export default class LensFlowExtension extends Renderer.LensExtension {
-  onActivate() {
-    console.log("[lens-flow] Extension activated");
-  }
-
   clusterPages = [
     {
       id: "workload-flow",

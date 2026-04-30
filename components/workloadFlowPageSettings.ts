@@ -29,6 +29,21 @@ export const defaultWorkloadFlowPageSettings: WorkloadFlowPageSettings = {
   namespaceByCluster: {},
 };
 
+type ClusterIdentityLike = {
+  getId?: () => string;
+  getName?: () => string;
+  metadata?: {
+    uid?: string;
+    name?: string;
+  };
+  spec?: {
+    kubeconfigContext?: string;
+  };
+};
+
+let lastSerializedSettings = "";
+let pendingWrite = Promise.resolve();
+
 function settingsFilePath(): string {
   return path.join(os.homedir(), ".k8slens", "lens-flow", "settings.json");
 }
@@ -63,14 +78,47 @@ export function parseWorkloadFlowPageSettings(raw: string): WorkloadFlowPageSett
   };
 }
 
+function uniqueStrings(values: Array<string | undefined>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+export function clusterPreferenceKeys(activeCluster?: ClusterIdentityLike | null, pathname?: string): string[] {
+  const contextName = activeCluster?.spec?.kubeconfigContext;
+  const clusterId = activeCluster?.getId?.() ?? activeCluster?.metadata?.uid;
+  const clusterName = activeCluster?.getName?.() ?? activeCluster?.metadata?.name;
+
+  if (activeCluster) {
+    return uniqueStrings([contextName, clusterId, clusterName, "default"]);
+  }
+
+  const match = pathname?.match(/\/cluster\/([^/]+)/);
+  return uniqueStrings([match?.[1] ? decodeURIComponent(match[1]) : undefined, "default"]);
+}
+
+export function storedNamespaceForCluster(
+  namespaceByCluster: Record<string, string>,
+  clusterKeys: string[]
+): string | undefined {
+  for (const key of clusterKeys) {
+    const value = namespaceByCluster[key];
+
+    if (typeof value === "string" && value) return value;
+  }
+
+  return undefined;
+}
+
 export function readWorkloadFlowPageSettings(): WorkloadFlowPageSettings {
   try {
-    return parseWorkloadFlowPageSettings(fs.readFileSync(settingsFilePath(), "utf8"));
+    const settings = parseWorkloadFlowPageSettings(fs.readFileSync(settingsFilePath(), "utf8"));
+    lastSerializedSettings = JSON.stringify(settings, null, 2);
+    return settings;
   } catch {
     for (const legacyPath of legacySettingsFilePaths()) {
       try {
         const settings = parseWorkloadFlowPageSettings(fs.readFileSync(legacyPath, "utf8"));
-        writeWorkloadFlowPageSettings(settings);
+        lastSerializedSettings = JSON.stringify(settings, null, 2);
+        void writeWorkloadFlowPageSettings(settings);
         return settings;
       } catch {
         continue;
@@ -81,9 +129,19 @@ export function readWorkloadFlowPageSettings(): WorkloadFlowPageSettings {
   }
 }
 
-export function writeWorkloadFlowPageSettings(settings: WorkloadFlowPageSettings): void {
+export function writeWorkloadFlowPageSettings(settings: WorkloadFlowPageSettings): Promise<void> {
   const filePath = settingsFilePath();
+  const serialized = JSON.stringify(settings, null, 2);
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2));
+  if (serialized === lastSerializedSettings) {
+    return pendingWrite;
+  }
+
+  lastSerializedSettings = serialized;
+  pendingWrite = pendingWrite.then(async () => {
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, serialized);
+  });
+
+  return pendingWrite;
 }

@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkloadGraph } from "../graph/buildGraph";
-import { parseWorkloadFlowPageSettings } from "../components/workloadFlowPageSettings";
+import {
+  clusterPreferenceKeys,
+  parseWorkloadFlowPageSettings,
+  storedNamespaceForCluster,
+} from "../components/workloadFlowPageSettings";
 import {
   ConfigMapLike,
   IngressLike,
@@ -514,6 +518,34 @@ test("parses cluster specific namespace settings", () => {
   assert.equal(settings.direction, "TB");
   assert.equal(settings.namespaceByCluster.alpha, "team-a");
   assert.equal(settings.namespaceByCluster.beta, "team-b");
+});
+
+test("prefers kubeconfig context and entity id before display name for cluster keys", () => {
+  const keys = clusterPreferenceKeys({
+    spec: { kubeconfigContext: "search-agent-dev-context" },
+    metadata: { uid: "cluster-uid", name: "search-agent-dev" },
+    getId: () => "cluster-id",
+    getName: () => "search-agent-dev",
+  });
+
+  assert.deepEqual(keys, [
+    "search-agent-dev-context",
+    "cluster-id",
+    "search-agent-dev",
+    "default",
+  ]);
+});
+
+test("falls back through stored cluster keys in order", () => {
+  const namespace = storedNamespaceForCluster(
+    {
+      "cluster-id": "team-a",
+      default: "legacy",
+    },
+    ["search-agent-dev-context", "cluster-id", "search-agent-dev", "default"]
+  );
+
+  assert.equal(namespace, "team-a");
 });
 
 test("migrates legacy selected namespace into default cluster bucket", () => {

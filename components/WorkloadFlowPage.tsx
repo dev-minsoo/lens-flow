@@ -3,8 +3,10 @@ import { Renderer } from "@k8slens/extensions";
 import { WorkloadFlow } from "./WorkloadFlow";
 import { GraphDirection, ResourceKind } from "../graph/types";
 import {
+  clusterPreferenceKeys,
   defaultVisibleKinds,
   readWorkloadFlowPageSettings,
+  storedNamespaceForCluster,
   writeWorkloadFlowPageSettings,
 } from "./workloadFlowPageSettings";
 import "./WorkloadFlowPage.scss";
@@ -40,34 +42,6 @@ type StoredSettings = {
   namespaceByCluster?: Record<string, string>;
 };
 
-function uniqueStrings(values: Array<string | undefined>): string[] {
-  return [...new Set(values.filter((value): value is string => Boolean(value)))];
-}
-
-function currentClusterKeys(): string[] {
-  const activeCluster = Renderer.Catalog.activeCluster.get();
-  const contextName = activeCluster?.spec?.kubeconfigContext;
-  const clusterName = activeCluster?.getName?.() ?? activeCluster?.metadata?.name;
-  const activeClusterId = activeCluster?.getId?.() ?? activeCluster?.metadata?.uid;
-
-  if (activeCluster) {
-    return uniqueStrings([contextName, clusterName, activeClusterId, "default"]);
-  }
-
-  const match = window.location.pathname.match(/\/cluster\/([^/]+)/);
-  return uniqueStrings([match?.[1] ? decodeURIComponent(match[1]) : undefined, "default"]);
-}
-
-function settingForCluster(settings: Record<string, string>, clusterKeys: string[]): string | undefined {
-  for (const key of clusterKeys) {
-    const value = settings[key];
-
-    if (typeof value === "string" && value) return value;
-  }
-
-  return undefined;
-}
-
 function normalizeVisibleKinds(kinds: ResourceKind[] | undefined): ResourceKind[] {
   if (!Array.isArray(kinds)) return defaultVisibleKinds;
 
@@ -85,11 +59,11 @@ const GearIcon = () => (
 
 export const WorkloadFlowPage: React.FC = () => {
   const storedSettings = useMemo<StoredSettings>(() => readWorkloadFlowPageSettings(), []);
-  const clusterKeys = currentClusterKeys();
+  const clusterKeys = clusterPreferenceKeys(Renderer.Catalog.activeCluster.get(), window.location.pathname);
   const clusterKey = clusterKeys[0] ?? "default";
   const initialVisibleKinds = normalizeVisibleKinds(storedSettings.visibleKinds);
   const initialNamespaceByCluster = storedSettings.namespaceByCluster ?? {};
-  const initialSelectedNamespace = settingForCluster(initialNamespaceByCluster, clusterKeys)
+  const initialSelectedNamespace = storedNamespaceForCluster(initialNamespaceByCluster, clusterKeys)
     ?? "default";
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const previousClusterKeyRef = useRef(clusterKey);
@@ -165,12 +139,12 @@ export const WorkloadFlowPage: React.FC = () => {
     if (previousClusterKeyRef.current === clusterKey) return;
 
     previousClusterKeyRef.current = clusterKey;
-    const nextNamespace = settingForCluster(namespaceByCluster, clusterKeys) ?? "default";
+    const nextNamespace = storedNamespaceForCluster(namespaceByCluster, clusterKeys) ?? "default";
     setSelectedNamespace(nextNamespace);
   }, [clusterKey, clusterKeys, namespaceByCluster]);
 
   useEffect(() => {
-    writeWorkloadFlowPageSettings({
+    void writeWorkloadFlowPageSettings({
       direction,
       visibleKinds,
       showMiniMap,
