@@ -3,6 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/dev-minsoo/lens-flow?display_name=tag)](https://github.com/dev-minsoo/lens-flow/releases)
 [![License](https://img.shields.io/github/license/dev-minsoo/lens-flow)](./LICENSE.md)
 
+[한국어](./README.ko.md)
+
 > Add your screenshot or GIF here near the top of the README.
 > Suggested path: `docs/assets/workload-flow-overview.gif`
 >
@@ -184,6 +186,16 @@ Available commands:
 - `graph/buildGraph.ts` builds and lays out the topology graph
 - `graph/types.ts` contains graph and Kubernetes-like types
 - `tests/buildGraph.test.ts` covers graph generation and settings parsing logic
+
+## Contributing
+
+Issues, ideas, bug reports, and pull requests are welcome.
+
+If you find a layout edge case or a Lens-family compatibility issue, open an issue with:
+
+- your Lens / OpenLens / FreeLens version
+- your Kubernetes resource mix
+- a screenshot or short GIF when possible
 
 ## License
 

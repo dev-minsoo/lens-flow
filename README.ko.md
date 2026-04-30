@@ -3,6 +3,8 @@
 [![Release](https://img.shields.io/github/v/release/dev-minsoo/lens-flow?display_name=tag)](https://github.com/dev-minsoo/lens-flow/releases)
 [![License](https://img.shields.io/github/license/dev-minsoo/lens-flow)](./LICENSE.md)
 
+[English](./README.md)
+
 > README 상단에 스크린샷이나 GIF를 넣으면 좋습니다.
 > 권장 경로: `docs/assets/workload-flow-overview.gif`
 >
@@ -184,6 +186,16 @@ npm run start
 - `graph/buildGraph.ts` - 토폴로지 그래프 생성과 레이아웃
 - `graph/types.ts` - 그래프 및 Kubernetes 유사 타입 정의
 - `tests/buildGraph.test.ts` - 그래프 생성과 설정 파싱 테스트
+
+## Contributing
+
+이슈, 아이디어, 버그 리포트, PR 모두 환영합니다.
+
+특히 레이아웃 edge case나 Lens 계열 앱 호환성 이슈가 있으면 아래 정보를 같이 남겨주면 큰 도움이 됩니다.
+
+- 사용한 Lens / OpenLens / FreeLens 버전
+- 사용한 Kubernetes 리소스 구성
+- 가능하면 스크린샷이나 짧은 GIF
 
 ## License
 
