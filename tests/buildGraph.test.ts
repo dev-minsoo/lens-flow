@@ -161,6 +161,48 @@ test("shows external load balancer services without ingresses", () => {
   assert.ok(graph.edges.some(edge => edge.source === "Service:default:api" && edge.target === "Deployment:default:api"));
 });
 
+test("connects a single service to multiple matching workloads", () => {
+  const service = kube<ServiceLike>("Service", "default", "shared-api", {
+    spec: {
+      type: "ClusterIP",
+      selector: { app: "shared-api" },
+      ports: [{ port: 80 }],
+    },
+  });
+
+  const deploymentA = kube<WorkloadLike>("Deployment", "default", "shared-api-a", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "shared-api" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const deploymentB = kube<WorkloadLike>("Deployment", "default", "shared-api-b", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "shared-api" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    services: [service],
+    deployments: [deploymentA, deploymentB],
+  });
+
+  assert.ok(graph.edges.some(edge => edge.source === "Service:default:shared-api" && edge.target === "Deployment:default:shared-api-a"));
+  assert.ok(graph.edges.some(edge => edge.source === "Service:default:shared-api" && edge.target === "Deployment:default:shared-api-b"));
+
+  const nodeA = graph.nodes.find(node => node.id === "Deployment:default:shared-api-a");
+  const nodeB = graph.nodes.find(node => node.id === "Deployment:default:shared-api-b");
+
+  assert.ok(nodeA);
+  assert.ok(nodeB);
+  assert.notEqual(nodeA.position.y, nodeB.position.y);
+});
+
 test("falls back to pod nodes when no owning workload is known", () => {
   const service = kube<ServiceLike>("Service", "default", "standalone", {
     spec: {
@@ -432,6 +474,57 @@ test("starts disconnected components at the load balancer column", () => {
   assert.ok(disconnectedNode.position.x >= loadBalancerNode.position.x);
 });
 
+test("keeps multiple disconnected components separated", () => {
+  const ingress = kube<IngressLike>("Ingress", "default", "front", {
+    spec: {
+      defaultBackend: { service: { name: "front" } },
+    },
+    status: { loadBalancer: { ingress: [{ hostname: "lb.example.test" }] } },
+  });
+  const service = kube<ServiceLike>("Service", "default", "front", {
+    spec: {
+      type: "ClusterIP",
+      selector: { app: "front" },
+      ports: [{ port: 80 }],
+    },
+  });
+  const connectedDeployment = kube<WorkloadLike>("Deployment", "default", "front", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "front" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const workerA = kube<WorkloadLike>("Deployment", "default", "worker-a", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "worker-a" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const workerB = kube<WorkloadLike>("Deployment", "default", "worker-b", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "worker-b" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    ingresses: [ingress],
+    services: [service],
+    deployments: [connectedDeployment, workerA, workerB],
+  });
+
+  const nodeA = graph.nodes.find(node => node.id === "Deployment:default:worker-a");
+  const nodeB = graph.nodes.find(node => node.id === "Deployment:default:worker-b");
+
+  assert.ok(nodeA);
+  assert.ok(nodeB);
+  assert.notEqual(nodeA.position.y, nodeB.position.y);
+});
+
 test("connects stateful sets to owned pods and generated volume claim templates", () => {
   const statefulSet = kube<WorkloadLike>("StatefulSet", "default", "redis", {
     spec: {
@@ -464,6 +557,81 @@ test("connects stateful sets to owned pods and generated volume claim templates"
   assert.ok(graph.nodes.some(node => node.id === "PersistentVolumeClaim:default:data-redis-0"));
   assert.ok(graph.edges.some(edge => edge.source === "StatefulSet:default:redis" && edge.target === "Pod:default:redis-0"));
   assert.ok(graph.edges.some(edge => edge.source === "PersistentVolumeClaim:default:data-redis-0" && edge.target === "StatefulSet:default:redis"));
+});
+
+test("keeps replica sets and pods ordered without overlapping when many revisions exist", () => {
+  const deployment = kube<WorkloadLike>("Deployment", "default", "web", {
+    spec: {
+      replicas: 3,
+      template: { metadata: { labels: { app: "web" } } },
+    },
+    status: { readyReplicas: 3, replicas: 3 },
+  });
+
+  const replicaSets = [
+    kube<ReplicaSetLike>("ReplicaSet", "default", "web-rs-1", {
+      metadata: {
+        annotations: { "deployment.kubernetes.io/revision": "1" },
+        ownerReferences: [{ kind: "Deployment", name: "web" }],
+      },
+      status: { readyReplicas: 1, replicas: 1 },
+    }),
+    kube<ReplicaSetLike>("ReplicaSet", "default", "web-rs-2", {
+      metadata: {
+        annotations: { "deployment.kubernetes.io/revision": "2" },
+        ownerReferences: [{ kind: "Deployment", name: "web" }],
+      },
+      status: { readyReplicas: 1, replicas: 1 },
+    }),
+    kube<ReplicaSetLike>("ReplicaSet", "default", "web-rs-3", {
+      metadata: {
+        annotations: { "deployment.kubernetes.io/revision": "3" },
+        ownerReferences: [{ kind: "Deployment", name: "web" }],
+      },
+      status: { readyReplicas: 1, replicas: 1 },
+    }),
+  ];
+
+  const pods = [
+    kube<PodLike>("Pod", "default", "web-rs-1-pod", {
+      metadata: {
+        labels: { app: "web" },
+        ownerReferences: [{ kind: "ReplicaSet", name: "web-rs-1" }],
+      },
+      status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] },
+    }),
+    kube<PodLike>("Pod", "default", "web-rs-2-pod", {
+      metadata: {
+        labels: { app: "web" },
+        ownerReferences: [{ kind: "ReplicaSet", name: "web-rs-2" }],
+      },
+      status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] },
+    }),
+    kube<PodLike>("Pod", "default", "web-rs-3-pod", {
+      metadata: {
+        labels: { app: "web" },
+        ownerReferences: [{ kind: "ReplicaSet", name: "web-rs-3" }],
+      },
+      status: { phase: "Running", conditions: [{ type: "Ready", status: "True" }] },
+    }),
+  ];
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    deployments: [deployment],
+    replicaSets,
+    pods,
+  });
+
+  const rs1 = graph.nodes.find(node => node.id === "ReplicaSet:default:web-rs-1");
+  const rs2 = graph.nodes.find(node => node.id === "ReplicaSet:default:web-rs-2");
+  const rs3 = graph.nodes.find(node => node.id === "ReplicaSet:default:web-rs-3");
+
+  assert.ok(rs1);
+  assert.ok(rs2);
+  assert.ok(rs3);
+  assert.ok(rs3.position.y < rs2.position.y);
+  assert.ok(rs2.position.y < rs1.position.y);
 });
 
 test("supports top to bottom layout and visible resource filtering", () => {
