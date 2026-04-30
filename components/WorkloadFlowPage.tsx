@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Renderer } from "@k8slens/extensions";
 import { WorkloadFlow } from "./WorkloadFlow";
 import { GraphDirection, ResourceKind } from "../graph/types";
+import {
+  defaultVisibleKinds,
+  readWorkloadFlowPageSettings,
+  writeWorkloadFlowPageSettings,
+} from "./workloadFlowPageSettings";
 import "./WorkloadFlowPage.scss";
 
 const { TabLayout } = Renderer.Component;
@@ -20,26 +25,56 @@ const resourceOptions: Array<{ kind: ResourceKind; label: string }> = [
   { kind: "Secret", label: "Secret" },
   { kind: "PersistentVolumeClaim", label: "PVC" },
 ];
-
-const defaultVisibleKinds = resourceOptions.map(option => option.kind);
-const platformNamespaceNames = new Set([
-  "argocd",
-  "cert-manager",
-  "external-secrets",
-  "ingress-nginx",
-  "istio-system",
-  "linkerd",
-  "logging",
-  "metallb-system",
-  "monitoring",
-]);
+const allVisibleKinds = resourceOptions.map(option => option.kind);
+const resourceKindSet = new Set<ResourceKind>(resourceOptions.map(option => option.kind));
 
 function resourceTone(kind: ResourceKind): string {
   return kind.toLowerCase();
 }
 
-function isPlatformNamespace(namespace: string): boolean {
-  return namespace.startsWith("kube-") || platformNamespaceNames.has(namespace);
+type StoredSettings = {
+  direction?: GraphDirection;
+  visibleKinds?: ResourceKind[];
+  showMiniMap?: boolean;
+  showControls?: boolean;
+  namespaceByCluster?: Record<string, string>;
+};
+
+function uniqueStrings(values: Array<string | undefined>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function currentClusterKeys(): string[] {
+  const activeCluster = Renderer.Catalog.activeCluster.get();
+  const contextName = activeCluster?.spec?.kubeconfigContext;
+  const clusterName = activeCluster?.getName?.() ?? activeCluster?.metadata?.name;
+  const activeClusterId = activeCluster?.getId?.() ?? activeCluster?.metadata?.uid;
+
+  if (activeCluster) {
+    return uniqueStrings([contextName, clusterName, activeClusterId, "default"]);
+  }
+
+  const match = window.location.pathname.match(/\/cluster\/([^/]+)/);
+  return uniqueStrings([match?.[1] ? decodeURIComponent(match[1]) : undefined, "default"]);
+}
+
+function settingForCluster(settings: Record<string, string>, clusterKeys: string[]): string | undefined {
+  for (const key of clusterKeys) {
+    const value = settings[key];
+
+    if (typeof value === "string" && value) return value;
+  }
+
+  return undefined;
+}
+
+function normalizeVisibleKinds(kinds: ResourceKind[] | undefined): ResourceKind[] {
+  if (!Array.isArray(kinds)) return defaultVisibleKinds;
+
+  const visible = new Set((kinds ?? []).filter(kind => resourceKindSet.has(kind)));
+  return resourceOptions
+    .map(option => option.kind)
+    .filter(kind => visible.has(kind));
 }
 
 const GearIcon = () => (
@@ -49,27 +84,35 @@ const GearIcon = () => (
 );
 
 export const WorkloadFlowPage: React.FC = () => {
+  const storedSettings = useMemo<StoredSettings>(() => readWorkloadFlowPageSettings(), []);
+  const clusterKeys = currentClusterKeys();
+  const clusterKey = clusterKeys[0] ?? "default";
+  const initialVisibleKinds = normalizeVisibleKinds(storedSettings.visibleKinds);
+  const initialNamespaceByCluster = storedSettings.namespaceByCluster ?? {};
+  const initialSelectedNamespace = settingForCluster(initialNamespaceByCluster, clusterKeys)
+    ?? "default";
   const filtersRef = useRef<HTMLDivElement | null>(null);
-  const [direction, setDirection] = useState<GraphDirection>("LR");
-  const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(defaultVisibleKinds);
+  const previousClusterKeyRef = useRef(clusterKey);
+  const [direction, setDirection] = useState<GraphDirection>(storedSettings.direction ?? "LR");
+  const [visibleKinds, setVisibleKinds] = useState<ResourceKind[]>(initialVisibleKinds);
+  const [draftVisibleKinds, setDraftVisibleKinds] = useState<ResourceKind[]>(initialVisibleKinds);
+  const [namespaceByCluster, setNamespaceByCluster] = useState<Record<string, string>>(initialNamespaceByCluster);
   const [availableNamespaces, setAvailableNamespaces] = useState<string[]>([]);
   const [resourceFiltersOpen, setResourceFiltersOpen] = useState(false);
   const [viewSettingsOpen, setViewSettingsOpen] = useState(false);
-  const [showMiniMap, setShowMiniMap] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [showPlatformNamespaces, setShowPlatformNamespaces] = useState(false);
-  const [selectedNamespace, setSelectedNamespace] = useState("default");
-  const namespaceOptions = useMemo(
-    () => showPlatformNamespaces
-      ? availableNamespaces
-      : availableNamespaces.filter(namespace => !isPlatformNamespace(namespace)),
-    [availableNamespaces, showPlatformNamespaces]
-  );
+  const [showMiniMap, setShowMiniMap] = useState(storedSettings.showMiniMap ?? false);
+  const [showControls, setShowControls] = useState(storedSettings.showControls ?? true);
+  const [selectedNamespace, setSelectedNamespace] = useState(initialSelectedNamespace);
+  const namespaceOptions = useMemo(() => availableNamespaces, [availableNamespaces]);
   const graphNamespaces = useMemo(
     () => availableNamespaces.includes(selectedNamespace) ? [selectedNamespace] : [],
     [availableNamespaces, selectedNamespace]
   );
   const selectedNamespaceValue = availableNamespaces.includes(selectedNamespace) ? selectedNamespace : "";
+  const hasPendingResourceChanges = useMemo(() => (
+    draftVisibleKinds.length !== visibleKinds.length
+      || draftVisibleKinds.some((kind, index) => kind !== visibleKinds[index])
+  ), [draftVisibleKinds, visibleKinds]);
 
   const handleNamespacesChange = useCallback((namespaces: string[]) => {
     setAvailableNamespaces(current => (
@@ -79,13 +122,62 @@ export const WorkloadFlowPage: React.FC = () => {
     ));
   }, []);
 
-  const toggleKind = (kind: ResourceKind) => {
-    setVisibleKinds(current =>
+  const toggleDraftKind = (kind: ResourceKind) => {
+    setDraftVisibleKinds(current => normalizeVisibleKinds(
       current.includes(kind)
         ? current.filter(item => item !== kind)
         : [...current, kind]
-    );
+    ));
   };
+
+  const closeResourceFilters = useCallback(() => {
+    setDraftVisibleKinds(visibleKinds);
+    setResourceFiltersOpen(false);
+  }, [visibleKinds]);
+
+  useEffect(() => {
+    if (availableNamespaces.length === 0) return;
+    if (availableNamespaces.includes(selectedNamespace)) return;
+
+    const fallbackNamespace = availableNamespaces.includes("default")
+      ? "default"
+      : availableNamespaces[0];
+
+    if (fallbackNamespace) {
+      setSelectedNamespace(fallbackNamespace);
+    }
+  }, [availableNamespaces, selectedNamespace]);
+
+  useEffect(() => {
+    if (!selectedNamespace) return;
+
+    setNamespaceByCluster(current => (
+      current[clusterKey] === selectedNamespace
+        ? current
+        : {
+          ...current,
+          [clusterKey]: selectedNamespace,
+        }
+    ));
+  }, [clusterKey, selectedNamespace]);
+
+  useEffect(() => {
+    if (previousClusterKeyRef.current === clusterKey) return;
+
+    previousClusterKeyRef.current = clusterKey;
+    const nextNamespace = settingForCluster(namespaceByCluster, clusterKeys) ?? "default";
+    setSelectedNamespace(nextNamespace);
+  }, [clusterKey, clusterKeys, namespaceByCluster]);
+
+  useEffect(() => {
+    writeWorkloadFlowPageSettings({
+      direction,
+      visibleKinds,
+      showMiniMap,
+      showControls,
+      namespaceByCluster,
+    });
+  }, [direction, namespaceByCluster, showControls, showMiniMap, visibleKinds]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -93,14 +185,14 @@ export const WorkloadFlowPage: React.FC = () => {
 
       if (target instanceof Node && filtersRef.current?.contains(target)) return;
 
-      setResourceFiltersOpen(false);
+      closeResourceFilters();
       setViewSettingsOpen(false);
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
 
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, []);
+  }, [closeResourceFilters]);
 
   return (
     <TabLayout className="WorkloadFlowPage">
@@ -154,7 +246,15 @@ export const WorkloadFlowPage: React.FC = () => {
               className={resourceFiltersOpen ? "active" : ""}
               onClick={() => {
                 setViewSettingsOpen(false);
-                setResourceFiltersOpen(open => !open);
+                setResourceFiltersOpen(open => {
+                  if (open) {
+                    setDraftVisibleKinds(visibleKinds);
+                    return false;
+                  }
+
+                  setDraftVisibleKinds(visibleKinds);
+                  return true;
+                });
               }}
             >
               Resources ({visibleKinds.length})
@@ -177,38 +277,45 @@ export const WorkloadFlowPage: React.FC = () => {
                   />
                   <span>Controls</span>
                 </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showPlatformNamespaces}
-                    onChange={() => setShowPlatformNamespaces(visible => !visible)}
-                  />
-                  <span>Platform namespaces</span>
-                </label>
               </div>
             )}
             {resourceFiltersOpen && (
               <div className="WorkloadFlowResourcePanel" role="dialog" aria-label="Visible resources">
                 <div className="WorkloadFlowResourcePanelHeader">
                   <span>Visible resources</span>
-                  <button type="button" onClick={() => setResourceFiltersOpen(false)}>Close</button>
+                  <button type="button" onClick={closeResourceFilters}>Close</button>
                 </div>
                 <div className="WorkloadFlowResourceActions">
-                  <button type="button" onClick={() => setVisibleKinds(defaultVisibleKinds)}>All</button>
-                  <button type="button" onClick={() => setVisibleKinds([])}>None</button>
+                  <button type="button" onClick={() => setDraftVisibleKinds(allVisibleKinds)}>All</button>
+                  <button type="button" onClick={() => setDraftVisibleKinds([])}>None</button>
+                  <button type="button" onClick={() => setDraftVisibleKinds(defaultVisibleKinds)}>Reset</button>
                 </div>
                 <div className="WorkloadFlowResourceFilters">
                   {resourceOptions.map(option => (
                     <label key={option.kind}>
                       <input
                         type="checkbox"
-                        checked={visibleKinds.includes(option.kind)}
-                        onChange={() => toggleKind(option.kind)}
+                        checked={draftVisibleKinds.includes(option.kind)}
+                        onChange={() => toggleDraftKind(option.kind)}
                       />
                       <span className={`resource-swatch resource-swatch-${resourceTone(option.kind)}`} />
                       <span>{option.label}</span>
                     </label>
                   ))}
+                </div>
+                <div className="WorkloadFlowResourceFooter">
+                  <button type="button" onClick={closeResourceFilters}>Cancel</button>
+                  <button
+                    type="button"
+                    className="primary"
+                    disabled={!hasPendingResourceChanges}
+                    onClick={() => {
+                      setVisibleKinds(draftVisibleKinds);
+                      setResourceFiltersOpen(false);
+                    }}
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
             )}

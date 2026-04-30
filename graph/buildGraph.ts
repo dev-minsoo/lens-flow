@@ -1,3 +1,4 @@
+import dagre from "dagre";
 import {
   ConfigMapLike,
   EndpointLike,
@@ -36,20 +37,23 @@ const KIND_RANK: Record<ResourceKind, number> = {
   LoadBalancer: 1,
   Ingress: 2,
   Service: 3,
+  ConfigMap: 3.5,
+  Secret: 3.5,
+  PersistentVolumeClaim: 3.5,
   Deployment: 4,
   StatefulSet: 4,
   DaemonSet: 4,
   ReplicaSet: 5,
-  ConfigMap: 5,
-  Secret: 5,
-  PersistentVolumeClaim: 5,
   Pod: 6,
   Unknown: 7,
 };
 
 const NODE_WIDTH = 220;
-const RANK_GAP = 280;
-const ROW_GAP = 130;
+const NODE_HEIGHT = 88;
+const CLOUD_WIDTH = 112;
+const CLOUD_HEIGHT = 44;
+const RANK_GAP = 72;
+const ROW_GAP = 20;
 
 interface WorkloadEntry {
   kind: ResourceKind;
@@ -157,6 +161,12 @@ function replicaSetSummary(replicaSet: ReplicaSetLike): string {
   return revision ? `Rev ${revision} · ${ready}` : ready;
 }
 
+function replicaSetRevision(replicaSet: ReplicaSetLike): number {
+  const revision = replicaSet.metadata?.annotations?.["deployment.kubernetes.io/revision"];
+  const parsed = revision ? Number.parseInt(revision, 10) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : -1;
+}
+
 function podHealth(pod: PodLike): ResourceHealth {
   if (pod.status?.phase === "Pending") return "pending";
   if (pod.status?.phase === "Failed") return "error";
@@ -199,14 +209,13 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     id,
     source,
     target,
-    type: "smoothstep",
+    type: "step",
     animated: true,
     className: "workload-flow-edge",
-    label,
-    data: { label },
+    zIndex: 20,
     style: {
       stroke: color,
-      strokeWidth: 2.25,
+      strokeWidth: 2.5,
       strokeDasharray: "8 8",
     },
     markerEnd: {
@@ -378,70 +387,225 @@ function connectionPositions(direction: GraphDirection): Pick<FlowNode, "sourceP
     : { sourcePosition: "right", targetPosition: "left" };
 }
 
+function nodeDimensions(node: FlowNode): { width: number; height: number } {
+  return node.type === "cloud"
+    ? { width: CLOUD_WIDTH, height: CLOUD_HEIGHT }
+    : { width: NODE_WIDTH, height: NODE_HEIGHT };
+}
+
 function layout(nodes: FlowNode[], edges: FlowEdge[], direction: GraphDirection): FlowNode[] {
-  const incoming = new Map<string, number>();
-  const incomingSources = new Map<string, string[]>();
-  const nodeRanks = new Map<string, number>();
-  edges.forEach(edge => {
-    incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1);
-    incomingSources.set(edge.target, [...(incomingSources.get(edge.target) ?? []), edge.source]);
+  const graph = new dagre.graphlib.Graph();
+  graph.setGraph({
+    rankdir: direction,
+    ranksep: RANK_GAP,
+    nodesep: ROW_GAP,
+    edgesep: 8,
+    ranker: "tight-tree",
+    marginx: 0,
+    marginy: 0,
   });
+  graph.setDefaultEdgeLabel(() => ({}));
 
-  const byRank = new Map<number, FlowNode[]>();
   nodes.forEach(node => {
-    const rank = KIND_RANK[node.data.kind] ?? KIND_RANK.Unknown;
-    nodeRanks.set(node.id, rank);
-    byRank.set(rank, [...(byRank.get(rank) ?? []), node]);
-  });
-
-  const orderById = new Map<string, number>();
-  const orderedByRank = new Map<number, FlowNode[]>();
-  const ranks = Array.from(byRank.keys()).sort((left, right) => left - right);
-
-  ranks.forEach(rank => {
-    const rankNodes = byRank.get(rank) ?? [];
-    const ordered = [...rankNodes].sort((left, right) => {
-      const leftParentOrders = (incomingSources.get(left.id) ?? [])
-        .filter(source => (nodeRanks.get(source) ?? -1) < rank)
-        .map(source => orderById.get(source))
-        .filter((order): order is number => order !== undefined);
-      const rightParentOrders = (incomingSources.get(right.id) ?? [])
-        .filter(source => (nodeRanks.get(source) ?? -1) < rank)
-        .map(source => orderById.get(source))
-        .filter((order): order is number => order !== undefined);
-      const leftScore = leftParentOrders.length > 0
-        ? leftParentOrders.reduce((sum, order) => sum + order, 0) / leftParentOrders.length
-        : Number.POSITIVE_INFINITY;
-      const rightScore = rightParentOrders.length > 0
-        ? rightParentOrders.reduce((sum, order) => sum + order, 0) / rightParentOrders.length
-        : Number.POSITIVE_INFINITY;
-
-      if (leftScore !== rightScore) return leftScore - rightScore;
-
-      const diff = (incoming.get(right.id) ?? 0) - (incoming.get(left.id) ?? 0);
-      if (diff !== 0) return diff;
-      return left.data.label.localeCompare(right.data.label);
+    graph.setNode(node.id, {
+      width: node.type === "cloud" ? CLOUD_WIDTH : NODE_WIDTH,
+      height: node.type === "cloud" ? CLOUD_HEIGHT : NODE_HEIGHT,
+      rank: KIND_RANK[node.data.kind] ?? KIND_RANK.Unknown,
     });
-
-    ordered.forEach((node, index) => orderById.set(node.id, index));
-    orderedByRank.set(rank, ordered);
   });
 
-  return nodes.map(node => {
-    const rank = KIND_RANK[node.data.kind] ?? KIND_RANK.Unknown;
-    const ordered = orderedByRank.get(rank) ?? [];
-    const index = ordered.findIndex(item => item.id === node.id);
-    const offset = -((ordered.length - 1) * ROW_GAP) / 2;
-    const position = direction === "TB"
-      ? { x: offset + index * RANK_GAP, y: rank * ROW_GAP * 1.35 }
-      : { x: rank * RANK_GAP, y: offset + index * ROW_GAP };
+  edges.forEach(edge => {
+    graph.setEdge(edge.source, edge.target, {
+      weight: edge.source.startsWith("Service:") ? 3 : 1,
+      minlen: 1,
+    });
+  });
 
+  dagre.layout(graph);
+
+  const laidOut = nodes.map(node => {
+    const layoutNode = graph.node(node.id);
     return {
       ...node,
       ...connectionPositions(direction),
-      position,
+      position: {
+        x: layoutNode.x,
+        y: layoutNode.y,
+      },
     };
   });
+
+  return resolveNodeCollisions(
+    repositionDisconnectedComponents(repositionReplicaSets(laidOut, direction), edges, direction),
+    direction
+  );
+}
+
+function repositionReplicaSets(nodes: FlowNode[], direction: GraphDirection): FlowNode[] {
+  const adjusted = nodes.map(node => ({ ...node, position: { ...node.position } }));
+  const deploymentById = new Map(adjusted
+    .filter(node => node.data.kind === "Deployment")
+    .map(node => [node.id, node]));
+  const replicaSetsByDeployment = new Map<string, FlowNode[]>();
+
+  adjusted
+    .filter(node => node.data.kind === "ReplicaSet")
+    .forEach(node => {
+      const resource = node.data.resource as ReplicaSetLike | undefined;
+      const owner = resource?.metadata?.ownerReferences?.find(ref => ref.kind === "Deployment" && ref.name);
+      if (!owner) return;
+
+      const deploymentId = objectKey("Deployment", resource?.getNs(), owner.name);
+      replicaSetsByDeployment.set(deploymentId, [...(replicaSetsByDeployment.get(deploymentId) ?? []), node]);
+    });
+
+  replicaSetsByDeployment.forEach((replicaSets, deploymentId) => {
+    const deployment = deploymentById.get(deploymentId);
+    if (!deployment || replicaSets.length < 2) return;
+
+    const ordered = [...replicaSets].sort((left, right) => {
+      const leftRevision = replicaSetRevision(left.data.resource as ReplicaSetLike);
+      const rightRevision = replicaSetRevision(right.data.resource as ReplicaSetLike);
+      if (leftRevision !== rightRevision) {
+        return direction === "TB"
+          ? leftRevision - rightRevision
+          : rightRevision - leftRevision;
+      }
+      return left.data.label.localeCompare(right.data.label);
+    });
+
+    const gap = direction === "TB" ? NODE_WIDTH + 24 : NODE_HEIGHT + 16;
+    const start = -((ordered.length - 1) * gap) / 2;
+
+    ordered.forEach((node, index) => {
+      if (direction === "TB") {
+        node.position.x = deployment.position.x + start + index * gap;
+      } else {
+        node.position.y = deployment.position.y + start + index * gap;
+      }
+    });
+  });
+
+  return adjusted;
+}
+
+function repositionDisconnectedComponents(nodes: FlowNode[], edges: FlowEdge[], direction: GraphDirection): FlowNode[] {
+  const adjusted = nodes.map(node => ({ ...node, position: { ...node.position } }));
+  const nodesById = new Map(adjusted.map(node => [node.id, node]));
+  const internetId = "internet";
+  const loadBalancerNodes = adjusted.filter(node => node.data.kind === "LoadBalancer");
+  const ingressNodes = adjusted.filter(node => node.data.kind === "Ingress");
+  const anchorNodes = loadBalancerNodes.length > 0 ? loadBalancerNodes : ingressNodes;
+  const anchor = anchorNodes.length > 0
+    ? Math.min(...anchorNodes.map(node => direction === "TB" ? node.position.y : node.position.x))
+    : null;
+
+  if (anchor === null || !nodesById.has(internetId)) {
+    return adjusted;
+  }
+
+  const directed = new Map<string, string[]>();
+  const undirected = new Map<string, string[]>();
+  const link = (map: Map<string, string[]>, from: string, to: string) => {
+    map.set(from, [...(map.get(from) ?? []), to]);
+  };
+
+  edges.forEach(edge => {
+    link(directed, edge.source, edge.target);
+    link(undirected, edge.source, edge.target);
+    link(undirected, edge.target, edge.source);
+  });
+
+  const reachableFromInternet = new Set<string>();
+  const stack = [internetId];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (reachableFromInternet.has(current)) continue;
+    reachableFromInternet.add(current);
+    (directed.get(current) ?? []).forEach(next => {
+      if (!reachableFromInternet.has(next)) stack.push(next);
+    });
+  }
+
+  const visited = new Set<string>();
+
+  adjusted.forEach(node => {
+    if (visited.has(node.id) || reachableFromInternet.has(node.id)) return;
+
+    const component: FlowNode[] = [];
+    const componentStack = [node.id];
+
+    while (componentStack.length > 0) {
+      const current = componentStack.pop()!;
+      if (visited.has(current) || reachableFromInternet.has(current)) continue;
+      visited.add(current);
+
+      const currentNode = nodesById.get(current);
+      if (currentNode) component.push(currentNode);
+
+      (undirected.get(current) ?? []).forEach(next => {
+        if (!visited.has(next) && !reachableFromInternet.has(next)) componentStack.push(next);
+      });
+    }
+
+    if (component.length === 0) return;
+
+    const componentAnchor = Math.min(...component.map(item => direction === "TB" ? item.position.y : item.position.x));
+    if (componentAnchor >= anchor) return;
+
+    const delta = anchor - componentAnchor;
+    component.forEach(item => {
+      if (direction === "TB") {
+        item.position.y += delta;
+      } else {
+        item.position.x += delta;
+      }
+    });
+  });
+
+  return adjusted;
+}
+
+function resolveNodeCollisions(nodes: FlowNode[], direction: GraphDirection): FlowNode[] {
+  const adjusted = nodes.map(node => ({ ...node, position: { ...node.position } }));
+  const padding = 18;
+  const maxPasses = 12;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let moved = false;
+
+    const ordered = [...adjusted].sort((left, right) => (
+      direction === "TB"
+        ? left.position.x - right.position.x || left.position.y - right.position.y
+        : left.position.y - right.position.y || left.position.x - right.position.x
+    ));
+
+    for (let i = 0; i < ordered.length; i += 1) {
+      for (let j = i + 1; j < ordered.length; j += 1) {
+        const first = ordered[i];
+        const second = ordered[j];
+        const firstSize = nodeDimensions(first);
+        const secondSize = nodeDimensions(second);
+        const overlapX = (firstSize.width + secondSize.width) / 2 + padding - Math.abs(first.position.x - second.position.x);
+        const overlapY = (firstSize.height + secondSize.height) / 2 + padding - Math.abs(first.position.y - second.position.y);
+
+        if (overlapX <= 0 || overlapY <= 0) continue;
+
+        if (direction === "TB") {
+          second.position.x += overlapX;
+        } else {
+          second.position.y += overlapY;
+        }
+
+        moved = true;
+      }
+    }
+
+    if (!moved) break;
+  }
+
+  return adjusted;
 }
 
 function addWorkloadNode(nodes: Map<string, FlowNode>, entry: WorkloadEntry): void {
@@ -585,8 +749,6 @@ function filterVisibleKinds(graph: WorkloadGraph, visibleKinds: ResourceKind[] |
       id,
       source,
       target,
-      label: edge.source === source && edge.target === target ? edge.label : undefined,
-      data: edge.source === source && edge.target === target ? edge.data : undefined,
     });
   };
 
@@ -657,6 +819,10 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
 
   const addLoadBalancerNode = (id: string, label: string, address: string | undefined, health: ResourceHealth, detailKind: ResourceKind, resource?: KubeObjectLike) => {
     addInternetNode();
+    const extra = address
+      ? (label === address ? undefined : address.startsWith("Port ") ? address : `Address ${address}`)
+      : "Address pending";
+
     addNode(nodes, {
       id,
       type: "loadbalancer",
@@ -666,7 +832,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         kind: "LoadBalancer",
         detailKind,
         namespace: resource?.getNs(),
-        extra: address ? (address.startsWith("Port ") ? address : `Address ${address}`) : "Address pending",
+        extra,
         health,
         resource,
       },
@@ -707,7 +873,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       if (!configMap) return;
       const configMapId = resourceKey("ConfigMap", configMap);
       addConfigMapNode(nodes, configMap);
-      addEdge(edges, workloadId, configMapId, "config", "config");
+      addEdge(edges, configMapId, workloadId, "config", "config");
     });
 
     refs.secrets.forEach(name => {
@@ -715,7 +881,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       if (!secret) return;
       const secretId = resourceKey("Secret", secret);
       addSecretNode(nodes, secret);
-      addEdge(edges, workloadId, secretId, "secret", "secret");
+      addEdge(edges, secretId, workloadId, "secret", "secret");
     });
 
     refs.persistentVolumeClaims.forEach(name => {
@@ -723,7 +889,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
       if (!pvc) return;
       const pvcId = resourceKey("PersistentVolumeClaim", pvc);
       addPersistentVolumeClaimNode(nodes, pvc);
-      addEdge(edges, workloadId, pvcId, "storage", "volume");
+      addEdge(edges, pvcId, workloadId, "storage", "volume");
     });
 
     if (kind === "StatefulSet") {
@@ -731,7 +897,7 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         .filter(pvc => pvc.getNs() === workload.getNs() && pvcBelongsToStatefulSet(pvc, workload))
         .forEach(pvc => {
           addPersistentVolumeClaimNode(nodes, pvc);
-          addEdge(edges, workloadId, resourceKey("PersistentVolumeClaim", pvc), "storage", "volume");
+          addEdge(edges, resourceKey("PersistentVolumeClaim", pvc), workloadId, "storage", "volume");
         });
     }
   };
@@ -857,16 +1023,21 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
   Array.from(secretIndex.values()).forEach(secret => addSecretNode(nodes, secret));
   Array.from(pvcIndex.values()).forEach(pvc => addPersistentVolumeClaimNode(nodes, pvc));
 
-  const laidOutNodes = layout(Array.from(nodes.values()), Array.from(edges.values()), direction).map(node => ({
+  const filteredGraph = filterVisibleKinds({
+    nodes: Array.from(nodes.values()),
+    edges: Array.from(edges.values()),
+  }, options.visibleKinds);
+
+  const laidOutNodes = layout(filteredGraph.nodes, filteredGraph.edges, direction).map(node => ({
     ...node,
     position: {
-      x: node.position.x + (direction === "TB" ? 720 : -NODE_WIDTH),
-      y: node.position.y + (direction === "TB" ? 90 : 300),
+      x: node.position.x + (direction === "TB" ? 320 : -NODE_WIDTH + 150),
+      y: node.position.y + (direction === "TB" ? 28 : 120),
     },
   }));
 
-  return filterVisibleKinds({
+  return {
     nodes: laidOutNodes,
-    edges: Array.from(edges.values()),
-  }, options.visibleKinds);
+    edges: filteredGraph.edges,
+  };
 }

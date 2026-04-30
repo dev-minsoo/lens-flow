@@ -173,6 +173,17 @@
   background: rgba(255, 255, 255, 0.04);
   font-size: 11px;
   cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+
+  &.primary {
+    color: var(--textColorPrimary, #f8fafc);
+    background: rgba(42, 138, 246, 0.24);
+    border-color: rgba(42, 138, 246, 0.32);
+  }
 }
 
 .WorkloadFlowResourceFilters {
@@ -272,4 +283,11 @@
       white-space: nowrap;
     }
   }
+}
+
+.WorkloadFlowResourceFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }

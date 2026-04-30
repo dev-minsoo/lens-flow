@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkloadGraph } from "../graph/buildGraph";
+import { parseWorkloadFlowPageSettings } from "../components/workloadFlowPageSettings";
 import {
   ConfigMapLike,
   IngressLike,
@@ -233,9 +234,20 @@ test("connects workloads to referenced config maps secrets and persistent volume
   assert.ok(graph.nodes.some(node => node.id === "Secret:default:api-secret"));
   assert.ok(graph.nodes.some(node => node.id === "Secret:default:api-token"));
   assert.ok(graph.nodes.some(node => node.id === "PersistentVolumeClaim:default:api-data"));
-  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "ConfigMap:default:api-config"));
-  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "Secret:default:api-secret"));
-  assert.ok(graph.edges.some(edge => edge.source === "Deployment:default:api" && edge.target === "PersistentVolumeClaim:default:api-data"));
+  assert.ok(graph.edges.some(edge => edge.source === "ConfigMap:default:api-config" && edge.target === "Deployment:default:api"));
+  assert.ok(graph.edges.some(edge => edge.source === "Secret:default:api-secret" && edge.target === "Deployment:default:api"));
+  assert.ok(graph.edges.some(edge => edge.source === "PersistentVolumeClaim:default:api-data" && edge.target === "Deployment:default:api"));
+  assert.ok(graph.edges.every(edge => edge.label === undefined));
+
+  const deploymentNode = graph.nodes.find(node => node.id === "Deployment:default:api");
+  const configNode = graph.nodes.find(node => node.id === "ConfigMap:default:api-config");
+  const secretNode = graph.nodes.find(node => node.id === "Secret:default:api-secret");
+
+  assert.ok(deploymentNode);
+  assert.ok(configNode);
+  assert.ok(secretNode);
+  assert.ok(configNode.position.x < deploymentNode.position.x);
+  assert.ok(secretNode.position.x < deploymentNode.position.x);
 });
 
 test("shows standalone config maps secrets and persistent volume claims in selected namespaces", () => {
@@ -311,6 +323,109 @@ test("connects deployments to replica sets and owned pods", () => {
 
   assert.deepEqual(filteredGraph.nodes.map(node => node.data.kind).sort(), ["Deployment", "Pod"]);
   assert.ok(filteredGraph.edges.some(edge => edge.source === "Deployment:default:web" && edge.target === "Pod:default:web-abc-1"));
+
+  const deploymentNode = filteredGraph.nodes.find(node => node.id === "Deployment:default:web");
+  const podNode = filteredGraph.nodes.find(node => node.id === "Pod:default:web-abc-1");
+
+  assert.ok(deploymentNode);
+  assert.ok(podNode);
+  assert.ok(podNode.position.x > deploymentNode.position.x);
+});
+
+test("orders replica sets by revision with newest first", () => {
+  const deployment = kube<WorkloadLike>("Deployment", "default", "web", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "web" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const replicaSetOld = kube<ReplicaSetLike>("ReplicaSet", "default", "web-old", {
+    metadata: {
+      annotations: { "deployment.kubernetes.io/revision": "3" },
+      ownerReferences: [{ kind: "Deployment", name: "web" }],
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const replicaSetNew = kube<ReplicaSetLike>("ReplicaSet", "default", "web-new", {
+    metadata: {
+      annotations: { "deployment.kubernetes.io/revision": "8" },
+      ownerReferences: [{ kind: "Deployment", name: "web" }],
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const graphLr = buildWorkloadGraph({
+    ...baseResources,
+    deployments: [deployment],
+    replicaSets: [replicaSetOld, replicaSetNew],
+  });
+
+  const rsOldLr = graphLr.nodes.find(node => node.id === "ReplicaSet:default:web-old");
+  const rsNewLr = graphLr.nodes.find(node => node.id === "ReplicaSet:default:web-new");
+
+  assert.ok(rsOldLr);
+  assert.ok(rsNewLr);
+  assert.ok(rsNewLr.position.y < rsOldLr.position.y);
+
+  const graphTb = buildWorkloadGraph({
+    ...baseResources,
+    deployments: [deployment],
+    replicaSets: [replicaSetOld, replicaSetNew],
+  }, {
+    direction: "TB",
+  });
+
+  const rsOldTb = graphTb.nodes.find(node => node.id === "ReplicaSet:default:web-old");
+  const rsNewTb = graphTb.nodes.find(node => node.id === "ReplicaSet:default:web-new");
+
+  assert.ok(rsOldTb);
+  assert.ok(rsNewTb);
+  assert.ok(rsNewTb.position.x > rsOldTb.position.x);
+});
+
+test("starts disconnected components at the load balancer column", () => {
+  const ingress = kube<IngressLike>("Ingress", "default", "web", {
+    spec: {
+      defaultBackend: { service: { name: "web" } },
+    },
+    status: { loadBalancer: { ingress: [{ hostname: "lb.example.test" }] } },
+  });
+  const service = kube<ServiceLike>("Service", "default", "web", {
+    spec: {
+      type: "ClusterIP",
+      selector: { app: "web" },
+      ports: [{ port: 80 }],
+    },
+  });
+  const deploymentConnected = kube<WorkloadLike>("Deployment", "default", "web", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "web" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+  const deploymentDisconnected = kube<WorkloadLike>("Deployment", "default", "worker", {
+    spec: {
+      replicas: 1,
+      template: { metadata: { labels: { app: "worker" } } },
+    },
+    status: { readyReplicas: 1, replicas: 1 },
+  });
+
+  const graph = buildWorkloadGraph({
+    ...baseResources,
+    ingresses: [ingress],
+    services: [service],
+    deployments: [deploymentConnected, deploymentDisconnected],
+  });
+
+  const loadBalancerNode = graph.nodes.find(node => node.id === "lb:default:web");
+  const disconnectedNode = graph.nodes.find(node => node.id === "Deployment:default:worker");
+
+  assert.ok(loadBalancerNode);
+  assert.ok(disconnectedNode);
+  assert.ok(disconnectedNode.position.x >= loadBalancerNode.position.x);
 });
 
 test("connects stateful sets to owned pods and generated volume claim templates", () => {
@@ -344,7 +459,7 @@ test("connects stateful sets to owned pods and generated volume claim templates"
   assert.ok(graph.nodes.some(node => node.id === "Pod:default:redis-0"));
   assert.ok(graph.nodes.some(node => node.id === "PersistentVolumeClaim:default:data-redis-0"));
   assert.ok(graph.edges.some(edge => edge.source === "StatefulSet:default:redis" && edge.target === "Pod:default:redis-0"));
-  assert.ok(graph.edges.some(edge => edge.source === "StatefulSet:default:redis" && edge.target === "PersistentVolumeClaim:default:data-redis-0"));
+  assert.ok(graph.edges.some(edge => edge.source === "PersistentVolumeClaim:default:data-redis-0" && edge.target === "StatefulSet:default:redis"));
 });
 
 test("supports top to bottom layout and visible resource filtering", () => {
@@ -380,8 +495,31 @@ test("supports top to bottom layout and visible resource filtering", () => {
 
   assert.ok(deploymentNode);
   assert.ok(secretNode);
-  assert.equal(deploymentNode.sourcePosition, "bottom");
-  assert.equal(secretNode.targetPosition, "top");
-  assert.ok(secretNode.position.y > deploymentNode.position.y);
+  assert.equal(deploymentNode.targetPosition, "top");
+  assert.equal(secretNode.sourcePosition, "bottom");
+  assert.ok(secretNode.position.y < deploymentNode.position.y);
   assert.deepEqual(graph.nodes.map(node => node.data.kind).sort(), ["Deployment", "Secret"]);
+});
+
+test("parses cluster specific namespace settings", () => {
+  const settings = parseWorkloadFlowPageSettings(JSON.stringify({
+    direction: "TB",
+    visibleKinds: ["Service", "Deployment"],
+    namespaceByCluster: {
+      alpha: "team-a",
+      beta: "team-b",
+    },
+  }));
+
+  assert.equal(settings.direction, "TB");
+  assert.equal(settings.namespaceByCluster.alpha, "team-a");
+  assert.equal(settings.namespaceByCluster.beta, "team-b");
+});
+
+test("migrates legacy selected namespace into default cluster bucket", () => {
+  const settings = parseWorkloadFlowPageSettings(JSON.stringify({
+    selectedNamespace: "legacy-ns",
+  }));
+
+  assert.equal(settings.namespaceByCluster.default, "legacy-ns");
 });

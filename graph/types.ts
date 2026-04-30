@@ -253,12 +253,20 @@ export interface FlowEdge {
   id: string;
   source: string;
   target: string;
-  type: "smoothstep";
+  type: "smoothstep" | "step";
   animated?: boolean;
   className?: string;
+  zIndex?: number;
   label?: string;
   data?: {
     label?: string;
+    sourceLane?: number;
+    sourceCount?: number;
+    targetLane?: number;
+    targetCount?: number;
+    edgeState?: "idle" | "highlighted" | "dimmed";
+    onHoverStart?: () => void;
+    onHoverEnd?: () => void;
   };
   style?: {
     stroke: string;

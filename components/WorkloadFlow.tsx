@@ -1,16 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { autorun } from "mobx";
 import ReactFlow, {
   Background,
   Controls,
   Edge,
+  EdgeProps,
   Handle,
   MarkerType,
   MiniMap,
   Node,
   Position,
   ReactFlowInstance,
+  getSmoothStepPath,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Renderer } from "@k8slens/extensions";
@@ -27,7 +29,8 @@ const { Spinner } = Renderer.Component;
 const apiManager = Renderer.K8sApi.apiManager;
 const k8sApi = Renderer.K8sApi as Record<string, unknown>;
 const NODE_ORIGIN: [number, number] = [0.5, 0.5];
-const FIT_VIEW_PADDING = 0.38;
+const FIT_VIEW_PADDING = 0.06;
+const EDGE_LANE_GAP = 8;
 
 type KubeStoreLike = {
   items: unknown[];
@@ -134,6 +137,78 @@ const nodeTypes = {
   custom: CustomNode,
   cloud: CloudNode,
   loadbalancer: LoadBalancerNode,
+};
+
+function edgeLaneOffset(lane: number | undefined): number {
+  return (lane ?? 0) * EDGE_LANE_GAP;
+}
+
+const LaneEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  data,
+}: EdgeProps) => {
+  const horizontal = sourcePosition === Position.Left || sourcePosition === Position.Right;
+  const adjustedSourceX = horizontal ? sourceX : sourceX + edgeLaneOffset(data?.sourceLane);
+  const adjustedSourceY = horizontal ? sourceY + edgeLaneOffset(data?.sourceLane) : sourceY;
+  const adjustedTargetX = horizontal ? targetX : targetX + edgeLaneOffset(data?.targetLane);
+  const adjustedTargetY = horizontal ? targetY + edgeLaneOffset(data?.targetLane) : targetY;
+  const [path] = getSmoothStepPath({
+    sourceX: adjustedSourceX,
+    sourceY: adjustedSourceY,
+    sourcePosition,
+    targetX: adjustedTargetX,
+    targetY: adjustedTargetY,
+    targetPosition,
+    borderRadius: 10,
+    offset: 18,
+  });
+  const edgeState = typeof data?.edgeState === "string" ? data.edgeState : "idle";
+  const mergedStyle: CSSProperties = {
+    ...style,
+    opacity: edgeState === "dimmed" ? 0.18 : 1,
+    strokeWidth: edgeState === "highlighted"
+      ? Math.max(Number(style?.strokeWidth ?? 2.5) + 1, 3.5)
+      : style?.strokeWidth,
+    filter: edgeState === "highlighted"
+      ? "drop-shadow(0 0 8px rgba(255,255,255,0.28))"
+      : style?.filter,
+    pointerEvents: "none",
+  };
+
+  return (
+    <g>
+      <path
+        id={id}
+        className="react-flow__edge-path"
+        d={path}
+        markerEnd={markerEnd}
+        style={mergedStyle}
+        fill="none"
+      />
+      <path
+        className="react-flow__edge-interaction workload-flow-edge-hitbox"
+        d={path}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={24}
+        onMouseEnter={() => data?.onHoverStart?.()}
+        onMouseMove={() => data?.onHoverStart?.()}
+        onMouseLeave={() => data?.onHoverEnd?.()}
+      />
+    </g>
+  );
+};
+
+const edgeTypes = {
+  lane: LaneEdge,
 };
 
 function getStore(apiName: string): KubeStoreLike | undefined {
@@ -294,19 +369,65 @@ function buildGraph(stores: WorkloadStores, namespaces: string[], direction: Gra
 
   const graph = buildWorkloadGraph(resources, { direction, visibleKinds });
 
-  return {
-    nodes: graph.nodes.map(node => ({
+  const nodes = graph.nodes.map(node => ({
       ...node,
       sourcePosition: toReactFlowPosition(node.sourcePosition),
       targetPosition: toReactFlowPosition(node.targetPosition),
-    })) as Node<FlowNodeData>[],
-    edges: graph.edges.map(edge => ({
+    })) as Node<FlowNodeData>[];
+  const nodesById = new Map(nodes.map(node => [node.id, node]));
+  const edgeOrderingAxis = (nodeId: string): number => {
+    const node = nodesById.get(nodeId);
+    if (!node) return 0;
+
+    return direction === "TB" ? node.position.x : node.position.y;
+  };
+  const laneOffsets = (count: number): number[] => Array.from(
+    { length: count },
+    (_, index) => index - (count - 1) / 2
+  );
+  const edges = graph.edges.map(edge => ({
       ...edge,
+      type: "lane",
       markerEnd: edge.markerEnd
         ? { ...edge.markerEnd, type: MarkerType.ArrowClosed }
         : { type: MarkerType.ArrowClosed },
-    })) as Edge[],
-  };
+    })) as Edge[];
+
+  const outgoingBySource = new Map<string, Edge[]>();
+  const incomingByTarget = new Map<string, Edge[]>();
+
+  edges.forEach(edge => {
+    outgoingBySource.set(edge.source, [...(outgoingBySource.get(edge.source) ?? []), edge]);
+    incomingByTarget.set(edge.target, [...(incomingByTarget.get(edge.target) ?? []), edge]);
+  });
+
+  outgoingBySource.forEach(sourceEdges => {
+    const ordered = [...sourceEdges].sort((left, right) => edgeOrderingAxis(left.target) - edgeOrderingAxis(right.target));
+    const lanes = laneOffsets(ordered.length);
+
+    ordered.forEach((edge, index) => {
+      edge.data = {
+        ...edge.data,
+        sourceLane: lanes[index],
+        sourceCount: ordered.length,
+      };
+    });
+  });
+
+  incomingByTarget.forEach(targetEdges => {
+    const ordered = [...targetEdges].sort((left, right) => edgeOrderingAxis(left.source) - edgeOrderingAxis(right.source));
+    const lanes = laneOffsets(ordered.length);
+
+    ordered.forEach((edge, index) => {
+      edge.data = {
+        ...edge.data,
+        targetLane: lanes[index],
+        targetCount: ordered.length,
+      };
+    });
+  });
+
+  return { nodes, edges };
 }
 
 interface WorkloadFlowProps {
@@ -321,6 +442,7 @@ interface WorkloadFlowProps {
 export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespaces, showMiniMap, showControls, onNamespacesChange }: WorkloadFlowProps) => {
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [graphRevision, setGraphRevision] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -334,6 +456,14 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         flowRef.current?.fitView({ padding: FIT_VIEW_PADDING, duration: 180 });
       });
     });
+  }, []);
+
+  const activateEdgeHover = useCallback((edgeId: string) => {
+    setHoveredEdgeId(current => current === edgeId ? current : edgeId);
+  }, []);
+
+  const clearEdgeHover = useCallback(() => {
+    setHoveredEdgeId(current => current === null ? current : null);
   }, []);
 
   const updateGraph = useCallback(() => {
@@ -414,6 +544,13 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     };
   }, [updateGraph]);
 
+  const hoveredNodeIds = useMemo(() => {
+    if (!hoveredEdgeId) return new Set<string>();
+
+    const hoveredEdge = edges.find(edge => edge.id === hoveredEdgeId);
+    return hoveredEdge ? new Set([hoveredEdge.source, hoveredEdge.target]) : new Set<string>();
+  }, [edges, hoveredEdgeId]);
+
   if (!isReady) {
     return <Spinner center />;
   }
@@ -436,12 +573,47 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     );
   }
 
+  const renderedNodes = nodes.map(node => {
+    if (!hoveredEdgeId) return node;
+
+    const isHighlighted = hoveredNodeIds.has(node.id);
+    return {
+      ...node,
+      className: isHighlighted ? "is-highlighted" : "is-dimmed",
+    };
+  });
+
+  const renderedEdges = edges.map(edge => {
+    if (!hoveredEdgeId) {
+      return {
+        ...edge,
+        data: {
+        ...edge.data,
+        edgeState: "idle",
+        onHoverStart: () => activateEdgeHover(edge.id),
+        onHoverEnd: clearEdgeHover,
+      },
+    };
+  }
+
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        edgeState: edge.id === hoveredEdgeId ? "highlighted" : "dimmed",
+        onHoverStart: () => activateEdgeHover(edge.id),
+        onHoverEnd: clearEdgeHover,
+      },
+    };
+  });
+
   return (
     <div className="WorkloadFlow">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={renderedNodes}
+        edges={renderedEdges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         nodeOrigin={NODE_ORIGIN}
         fitView
         fitViewOptions={{ padding: FIT_VIEW_PADDING }}
@@ -450,6 +622,9 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         nodesDraggable={false}
         nodesConnectable={false}
         nodesFocusable={false}
+        onNodeMouseEnter={clearEdgeHover}
+        onPaneMouseLeave={clearEdgeHover}
+        onMoveStart={clearEdgeHover}
         onInit={instance => {
           flowRef.current = instance;
           fitGraph();

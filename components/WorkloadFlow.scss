@@ -16,6 +16,22 @@
     height: 100%;
   }
 
+  .react-flow__edges {
+    z-index: 20 !important;
+  }
+
+  .react-flow__edge {
+    z-index: 20 !important;
+  }
+
+  .react-flow__nodes {
+    z-index: 10 !important;
+  }
+
+  .react-flow__node {
+    z-index: 10 !important;
+  }
+
   .react-flow__panel.bottom {
     bottom: 56px !important;
   }
@@ -227,6 +243,29 @@
     padding: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+
+    &.is-dimmed {
+      .workload-card,
+      .cloud-node {
+        opacity: 0.34;
+        transform: scale(0.985);
+      }
+    }
+
+    &.is-highlighted {
+      .workload-card,
+      .cloud-node {
+        opacity: 1;
+      }
+
+      .workload-card {
+        border-color: var(--node-accent);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.05),
+          0 14px 34px rgba(0, 0, 0, 0.34),
+          0 0 32px var(--node-glow);
+      }
+    }
   }
 
   @keyframes dash {
@@ -242,6 +281,14 @@
     stroke-linecap: round;
     stroke-dasharray: 8 8 !important;
     filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease,
+      filter 120ms ease;
+  }
+
+  .workload-flow-edge-hitbox {
+    cursor: pointer;
   }
 
   .react-flow__edge.animated .react-flow__edge-path {
