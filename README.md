@@ -1,8 +1,8 @@
 # Lens Flow
 
 [![Release](https://img.shields.io/github/v/release/dev-minsoo/lens-flow?display_name=tag)](https://github.com/dev-minsoo/lens-flow/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/dev-minsoo/lens-flow/ci.yml?branch=main&label=ci)](https://github.com/dev-minsoo/lens-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/dev-minsoo/lens-flow)](./LICENSE.md)
-[![Downloads](https://img.shields.io/github/downloads/dev-minsoo/lens-flow/total)](https://github.com/dev-minsoo/lens-flow/releases)
 
 > Add your screenshot or GIF here near the top of the README.
 > Suggested path: `docs/assets/workload-flow-overview.gif`
@@ -13,6 +13,16 @@
 Lens Flow is a Kubernetes topology extension for Lens-family apps. It renders cluster entrypoints, routing resources, workloads, and workload dependencies as an interactive graph inside a cluster page named **Workload Monitoring**.
 
 The project was inspired by the experience of exploring resource relationships through Argo CD's Tree and Network graph views, but adapted for Lens-family desktop clients with a Kubernetes workload-focused topology.
+
+When Kubernetes traffic and ownership relationships are spread across Ingresses, Services, workloads, ReplicaSets, Pods, ConfigMaps, Secrets, and PVCs, understanding one change often means jumping through multiple screens. Lens Flow brings those relationships into one view so operators can trace routing, ownership, and dependencies faster.
+
+## Download
+
+- [Open the latest release](https://github.com/dev-minsoo/lens-flow/releases/latest)
+- Download the attached `lens-flow-*.tgz` asset from that release
+- Install the downloaded `.tgz` from the Extensions screen in Lens, OpenLens, or FreeLens
+
+Releases are created when a `vX.Y.Z` tag is pushed on a commit that is already included in `main`.
 
 It is designed for operators who want to answer questions like:
 
@@ -84,9 +94,15 @@ This lets the extension preserve old values while preferring stable, human-reada
 
 ## Installation
 
-### Install from a packaged `.tgz`
+### Install from GitHub Releases
 
-1. Build and pack:
+1. Open the [latest release](https://github.com/dev-minsoo/lens-flow/releases/latest).
+2. Download the attached `lens-flow-*.tgz` asset.
+3. Open Lens, OpenLens, or FreeLens.
+4. Go to the Extensions screen.
+5. Install the downloaded `.tgz`.
+
+### Build a local `.tgz`
 
 ```sh
 npm install
@@ -94,11 +110,7 @@ npm run build
 npm pack
 ```
 
-2. Open Lens/OpenLens/FreeLens.
-3. Go to the Extensions screen.
-4. Install the generated `lens-flow-<version>.tgz`.
-
-The `Downloads` badge above is based on GitHub Releases asset download counts. It starts working once release assets are published on GitHub.
+Then install the generated `lens-flow-<version>.tgz` from the Extensions screen.
 
 ### Install from source during development
 
@@ -107,7 +119,7 @@ npm install
 npm run build
 ```
 
-Then load the extension directory or generated package from the Extensions screen.
+Then load the project directory from the Extensions screen.
 
 ## Usage
 
@@ -155,6 +167,13 @@ Available commands:
 - `npm run build` - production build
 - `npm test` - graph and settings tests
 - `npm pack` - create installable `.tgz`
+
+## Release Flow
+
+1. Update `package.json` to the target version
+2. Commit the change on `main`
+3. Create and push a matching tag such as `v1.0.0`
+4. GitHub Actions runs tests, builds the extension, creates `lens-flow-<version>.tgz`, and publishes or updates the matching GitHub Release
 
 ## Project Structure
 

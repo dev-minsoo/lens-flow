@@ -1,8 +1,8 @@
 # Lens Flow
 
 [![Release](https://img.shields.io/github/v/release/dev-minsoo/lens-flow?display_name=tag)](https://github.com/dev-minsoo/lens-flow/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/dev-minsoo/lens-flow/ci.yml?branch=main&label=ci)](https://github.com/dev-minsoo/lens-flow/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/dev-minsoo/lens-flow)](./LICENSE.md)
-[![Downloads](https://img.shields.io/github/downloads/dev-minsoo/lens-flow/total)](https://github.com/dev-minsoo/lens-flow/releases)
 
 > README 상단에 스크린샷이나 GIF를 넣으면 좋습니다.
 > 권장 경로: `docs/assets/workload-flow-overview.gif`
@@ -13,6 +13,16 @@
 Lens Flow는 Lens 계열 앱에서 동작하는 Kubernetes 토폴로지 익스텐션입니다. 클러스터 내부의 진입점, 라우팅 리소스, 워크로드, 워크로드 의존성을 **Workload Monitoring** 페이지에서 그래프로 보여줍니다.
 
 이 프로젝트는 Argo CD의 Tree, Network 그래프 뷰에서 리소스 관계를 파악하던 경험에서 영감을 받았고, 그것을 Lens 계열 데스크톱 클라이언트 안에서 Kubernetes workload 중심 토폴로지로 풀어낸 형태입니다.
+
+Kubernetes에서는 Ingress, Service, workload, ReplicaSet, Pod, ConfigMap, Secret, PVC 같은 관계가 여러 화면에 흩어져 있어서, 변경 하나를 이해하려면 이 화면 저 화면을 계속 오가게 됩니다. Lens Flow는 그 관계를 한 화면으로 모아서 라우팅, ownership, dependency를 더 빠르게 추적할 수 있게 하는 데 목적이 있습니다.
+
+## 다운로드
+
+- [최신 릴리즈 열기](https://github.com/dev-minsoo/lens-flow/releases/latest)
+- 해당 릴리즈에 첨부된 `lens-flow-*.tgz` asset을 다운로드
+- Lens, OpenLens, FreeLens의 Extensions 화면에서 다운로드한 `.tgz` 설치
+
+릴리즈는 `main`에 포함된 커밋에 대해 `vX.Y.Z` 태그를 푸시했을 때 생성됩니다.
 
 다음 같은 상황을 빠르게 파악하는 데 목적이 있습니다.
 
@@ -84,9 +94,15 @@ Resource 패널의 `Reset`은 이 기본값으로 되돌립니다.
 
 ## 설치
 
-### `.tgz` 패키지로 설치
+### GitHub Releases에서 설치
 
-1. 빌드 및 패키징:
+1. [최신 릴리즈](https://github.com/dev-minsoo/lens-flow/releases/latest)를 엽니다.
+2. 첨부된 `lens-flow-*.tgz` asset을 다운로드합니다.
+3. Lens, OpenLens, FreeLens를 엽니다.
+4. Extensions 화면으로 이동합니다.
+5. 다운로드한 `.tgz`를 설치합니다.
+
+### 로컬에서 `.tgz` 생성 후 설치
 
 ```sh
 npm install
@@ -94,11 +110,7 @@ npm run build
 npm pack
 ```
 
-2. Lens/OpenLens/FreeLens를 엽니다.
-3. Extensions 화면으로 이동합니다.
-4. 생성된 `lens-flow-<version>.tgz`를 설치합니다.
-
-상단의 `Downloads` 배지는 GitHub Releases asset download 수를 기준으로 표시됩니다. GitHub Releases에 asset이 올라가야 값이 반영됩니다.
+그 후 생성된 `lens-flow-<version>.tgz`를 Extensions 화면에서 설치하면 됩니다.
 
 ### 개발 중 소스에서 설치
 
@@ -107,7 +119,7 @@ npm install
 npm run build
 ```
 
-그 후 Extensions 화면에서 프로젝트 디렉터리나 생성된 패키지를 로드하면 됩니다.
+그 후 Extensions 화면에서 프로젝트 디렉터리를 로드하면 됩니다.
 
 ## 사용 방법
 
@@ -155,6 +167,13 @@ npm run start
 - `npm run build` - production build
 - `npm test` - graph/settings 테스트
 - `npm pack` - 설치 가능한 `.tgz` 생성
+
+## 릴리즈 흐름
+
+1. `package.json` 버전을 목표 버전으로 올립니다
+2. 그 변경을 `main`에 반영합니다
+3. `v1.0.0` 같은 동일한 버전 태그를 생성해서 푸시합니다
+4. GitHub Actions가 테스트, 빌드, `lens-flow-<version>.tgz` 생성, GitHub Release 생성 또는 갱신까지 수행합니다
 
 ## 프로젝트 구조
 
