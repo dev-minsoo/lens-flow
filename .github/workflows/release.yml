@@ -53,13 +53,31 @@ jobs:
           ASSET="$(node -e 'const pkg = require("./package.json"); const normalizedName = pkg.name.replace(/^@/, "").replace(/\//g, "-"); process.stdout.write(`${normalizedName}-${pkg.version}.tgz`);')"
           echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
 
+      - name: Generate release notes
+        env:
+          ASSET: ${{ steps.pkg.outputs.asset }}
+        run: |
+          PREVIOUS_TAG="$(git tag --sort=-version:refname | grep -Fxv "$GITHUB_REF_NAME" | head -n1)"
+
+          {
+            echo "## Install"
+            echo "- Download \`$ASSET\` from the release assets below and install it from Lens/OpenLens/FreeLens Extensions."
+            echo
+            echo "## Compare changes"
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "- https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...$GITHUB_REF_NAME"
+            else
+              echo "- Initial release"
+            fi
+          } > RELEASE_NOTES.md
+
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
           artifactErrorsFailBuild: true
           artifacts: ${{ steps.pkg.outputs.asset }}
+          bodyFile: RELEASE_NOTES.md
           commit: ${{ github.sha }}
-          generateReleaseNotes: true
           makeLatest: true
           replacesArtifacts: true
           tag: ${{ github.ref_name }}
