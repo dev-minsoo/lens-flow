@@ -58,8 +58,17 @@ jobs:
           ASSET: ${{ steps.pkg.outputs.asset }}
         run: |
           PREVIOUS_TAG="$(git tag --sort=-version:refname | grep -Fxv "$GITHUB_REF_NAME" | head -n1)"
+          if [ -n "$PREVIOUS_TAG" ]; then
+            COMMIT_RANGE="$PREVIOUS_TAG..$GITHUB_REF_NAME"
+          else
+            COMMIT_RANGE="$GITHUB_REF_NAME"
+          fi
 
           {
+            echo "## Changes"
+            git log --reverse --pretty=format:'- [`%h`](https://github.com/${{ github.repository }}/commit/%H) %s' "$COMMIT_RANGE"
+            echo
+            echo
             echo "## Install"
             echo "- Download \`$ASSET\` from the release assets below and install it from Lens/OpenLens/FreeLens Extensions."
             echo
