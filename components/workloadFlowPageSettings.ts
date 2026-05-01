@@ -43,18 +43,38 @@ type ClusterIdentityLike = {
 
 let lastSerializedSettings = "";
 let pendingWrite = Promise.resolve();
+const PACKAGE_NAME = "lens-flow";
+
+function settingsFileCandidates(): string[] {
+  const home = os.homedir();
+
+  return [
+    path.join(home, ".freelens", PACKAGE_NAME, "settings.json"),
+    path.join(home, ".k8slens", PACKAGE_NAME, "settings.json"),
+  ];
+}
 
 function settingsFilePath(): string {
-  return path.join(os.homedir(), ".k8slens", "lens-flow", "settings.json");
+  const existingFile = settingsFileCandidates().find(filePath => fs.existsSync(filePath));
+  if (existingFile) return existingFile;
+
+  const home = os.homedir();
+  const preferFreeLens = fs.existsSync(path.join(home, ".freelens"));
+  return preferFreeLens ? settingsFileCandidates()[0] : settingsFileCandidates()[1];
 }
 
 function legacySettingsFilePaths(): string[] {
   const home = os.homedir();
 
   return [
+    path.join(home, ".freelens", "extensions", "dev-minsoo--lens-flow", "settings.json"),
+    path.join(home, ".freelens", "extensions", "@dev-minsoo", "lens-flow", "settings.json"),
+    path.join(home, ".k8slens", "extensions", "dev-minsoo--lens-flow", "settings.json"),
+    path.join(home, ".k8slens", "extensions", "@dev-minsoo", "lens-flow", "settings.json"),
     path.join(home, "Library", "Application Support", "OpenLens", "lens-flow-settings.json"),
     path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "OpenLens", "lens-flow-settings.json"),
     path.join(process.env.XDG_CONFIG_HOME ?? path.join(home, ".config"), "OpenLens", "lens-flow-settings.json"),
+    path.join(home, ".k8slens", "lens-flow", "settings.json"),
   ];
 }
 

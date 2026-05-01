@@ -73,10 +73,16 @@ The default visible resource set is:
 
 ## Persistence
 
-Lens Flow stores user settings in:
+Lens Flow stores user settings here:
 
 ```text
 ~/.k8slens/lens-flow/settings.json
+```
+
+On FreeLens:
+
+```text
+~/.freelens/lens-flow/settings.json
 ```
 
 Settings behavior:

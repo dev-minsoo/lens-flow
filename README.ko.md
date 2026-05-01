@@ -79,6 +79,12 @@ Resource 패널의 `Reset`은 이 기본값으로 되돌립니다.
 ~/.k8slens/lens-flow/settings.json
 ```
 
+FreeLens에서는 다음 경로를 사용합니다.
+
+```text
+~/.freelens/lens-flow/settings.json
+```
+
 저장 규칙:
 
 - `namespace`는 클러스터별 저장
