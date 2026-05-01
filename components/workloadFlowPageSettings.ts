@@ -45,6 +45,16 @@ let lastSerializedSettings = "";
 let pendingWrite = Promise.resolve();
 const PACKAGE_NAME = "lens-flow";
 
+function currentAppFlavor(): "freelens" | "lens" | undefined {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.includes("freelens")) return "freelens";
+    if (hostname.includes("lens")) return "lens";
+  }
+
+  return undefined;
+}
+
 function settingsFileCandidates(): string[] {
   const home = os.homedir();
 
@@ -55,16 +65,36 @@ function settingsFileCandidates(): string[] {
 }
 
 function settingsFilePath(): string {
+  const home = os.homedir();
+  const appFlavor = currentAppFlavor();
+
+  if (appFlavor === "freelens") {
+    return path.join(home, ".freelens", PACKAGE_NAME, "settings.json");
+  }
+
+  if (appFlavor === "lens") {
+    return path.join(home, ".k8slens", PACKAGE_NAME, "settings.json");
+  }
+
   const existingFile = settingsFileCandidates().find(filePath => fs.existsSync(filePath));
   if (existingFile) return existingFile;
 
-  const home = os.homedir();
-  const preferFreeLens = fs.existsSync(path.join(home, ".freelens"));
-  return preferFreeLens ? settingsFileCandidates()[0] : settingsFileCandidates()[1];
+  return fs.existsSync(path.join(home, ".freelens"))
+    ? path.join(home, ".freelens", PACKAGE_NAME, "settings.json")
+    : path.join(home, ".k8slens", PACKAGE_NAME, "settings.json");
 }
 
 function legacySettingsFilePaths(): string[] {
   const home = os.homedir();
+  const appFlavor = currentAppFlavor();
+  const appSpecificLegacyPaths = appFlavor === "freelens"
+    ? [path.join(home, ".k8slens", "lens-flow", "settings.json")]
+    : appFlavor === "lens"
+      ? [path.join(home, ".freelens", "lens-flow", "settings.json")]
+      : [
+        path.join(home, ".freelens", "lens-flow", "settings.json"),
+        path.join(home, ".k8slens", "lens-flow", "settings.json"),
+      ];
 
   return [
     path.join(home, ".freelens", "extensions", "dev-minsoo--lens-flow", "settings.json"),
@@ -74,7 +104,7 @@ function legacySettingsFilePaths(): string[] {
     path.join(home, "Library", "Application Support", "OpenLens", "lens-flow-settings.json"),
     path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "OpenLens", "lens-flow-settings.json"),
     path.join(process.env.XDG_CONFIG_HOME ?? path.join(home, ".config"), "OpenLens", "lens-flow-settings.json"),
-    path.join(home, ".k8slens", "lens-flow", "settings.json"),
+    ...appSpecificLegacyPaths,
   ];
 }
 
