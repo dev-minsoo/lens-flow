@@ -1,4 +1,4 @@
-import React, { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { autorun } from "mobx";
 import ReactFlow, {
@@ -30,7 +30,10 @@ const { Spinner } = Renderer.Component;
 const apiManager = Renderer.K8sApi.apiManager;
 const k8sApi = Renderer.K8sApi as Record<string, unknown>;
 const NODE_ORIGIN: [number, number] = [0.5, 0.5];
-const FIT_VIEW_PADDING = 0.06;
+const FIT_VIEW_PADDING: Record<GraphDirection, number> = {
+  LR: 0.16,
+  TB: 0.20,
+};
 const EDGE_LANE_GAP = 8;
 const EDGE_HOVER_ACTIVATION_DELAY_MS = 100;
 const EDGE_HOVER_CLEAR_DELAY_MS = 100;
@@ -468,6 +471,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const flowRef = useRef<ReactFlowInstance<FlowNodeData> | null>(null);
   const fitSignatureRef = useRef("");
   const hoverTimerRef = useRef<number | null>(null);
+  const updateGraphRef = useRef<() => void>(() => undefined);
 
   const clearHoverTimer = useCallback(() => {
     if (hoverTimerRef.current !== null) {
@@ -477,12 +481,14 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   }, []);
 
   const fitGraph = useCallback(() => {
+    const padding = FIT_VIEW_PADDING[direction];
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        flowRef.current?.fitView({ padding: FIT_VIEW_PADDING, duration: 180 });
+        flowRef.current?.fitView({ padding, duration: 180 });
       });
     });
-  }, []);
+  }, [direction]);
 
   const activateEdgeHover = useCallback((edgeId: string) => {
     clearHoverTimer();
@@ -518,6 +524,14 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
       setGraphRevision(revision => revision + 1);
     }
   }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
+
+  useEffect(() => {
+    updateGraphRef.current = updateGraph;
+  }, [updateGraph]);
+
+  useLayoutEffect(() => {
+    if (isReady) updateGraph();
+  }, [isReady, updateGraph]);
 
   useEffect(() => {
     if (nodes.length > 0) fitGraph();
@@ -561,7 +575,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
             void store.items.length;
           });
 
-          if (isMounted) updateGraph();
+          if (isMounted) updateGraphRef.current();
         });
 
         if (isMounted) setIsReady(true);
@@ -580,7 +594,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
       disposer?.();
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
-  }, [updateGraph]);
+  }, []);
 
   const hoveredNodeIds = useMemo(() => {
     if (!hoveredEdgeId) return new Set<string>();
@@ -661,7 +675,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         edgeTypes={edgeTypes}
         nodeOrigin={NODE_ORIGIN}
         fitView
-        fitViewOptions={{ padding: FIT_VIEW_PADDING }}
+        fitViewOptions={{ padding: FIT_VIEW_PADDING[direction] }}
         minZoom={0.1}
         maxZoom={2}
         nodesDraggable={false}
@@ -678,7 +692,13 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
       >
         <Background color="var(--borderColor, #333)" gap={20} size={1} />
         {showMiniMap && <MiniMap position="bottom-left" pannable zoomable />}
-        {showControls && <Controls className="WorkloadFlowControls" position="bottom-right" />}
+        {showControls && (
+          <Controls
+            className="WorkloadFlowControls"
+            fitViewOptions={{ padding: FIT_VIEW_PADDING[direction], duration: 180 }}
+            position="bottom-right"
+          />
+        )}
       </ReactFlow>
     </div>
   );
