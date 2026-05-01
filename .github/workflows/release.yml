@@ -44,11 +44,12 @@ jobs:
         run: npm test
 
       - name: Build package
-        run: npm pack
+        id: pack
+        run: npm pack --json > pack-output.json
 
       - name: Read package asset
         id: pkg
-        run: echo "asset=$(ls lens-flow-*.tgz)" >> "$GITHUB_OUTPUT"
+        run: echo "asset=$(node -p \"require('./pack-output.json')[0].filename\")" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
