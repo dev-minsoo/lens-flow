@@ -7,6 +7,21 @@
 
 Lens Flow is a Kubernetes topology extension for Lens-family desktop apps. It adds a **Workload Monitoring** page that lets you trace routing, ownership, and workload dependencies in one graph.
 
+It was built for the moments when checking a Kubernetes path means jumping between Ingress, Service, Deployment, ReplicaSet, Pod, ConfigMap, Secret, and PVC detail screens. Lens Flow keeps that workflow inside the cluster view and turns it into a graph you can inspect at a glance.
+
+## Preview
+
+<p>
+  <img src="docs/assets/screenshot.png" alt="Lens Flow workload topology screenshot" width="820">
+</p>
+
+<details>
+  <summary>View demo GIF</summary>
+  <p>
+    <img src="docs/assets/demo.gif" alt="Lens Flow demo showing namespace topology, layout switching, and resource filtering" width="820">
+  </p>
+</details>
+
 ## Why Lens Flow
 
 Kubernetes relationships are usually spread across multiple screens. Lens Flow brings the most common paths into one view so you can answer questions like:

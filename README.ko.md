@@ -7,6 +7,21 @@
 
 Lens Flow는 Lens 계열 데스크톱 앱에서 동작하는 Kubernetes 토폴로지 익스텐션입니다. 클러스터 안의 라우팅, ownership, dependency를 한 화면에서 볼 수 있도록 **Workload Monitoring** 페이지를 추가합니다.
 
+Lens에서 Kubernetes 리소스 관계를 확인하다 보면 Ingress, Service, Deployment, ReplicaSet, Pod, ConfigMap, Secret, PVC 화면을 계속 오가게 됩니다. Lens Flow는 이 흐름을 클러스터 화면 안에 그대로 두면서, 한눈에 따라갈 수 있는 그래프로 보여주기 위해 만들었습니다.
+
+## 미리보기
+
+<p>
+  <img src="docs/assets/screenshot.png" alt="Lens Flow workload topology screenshot" width="820">
+</p>
+
+<details>
+  <summary>데모 GIF 보기</summary>
+  <p>
+    <img src="docs/assets/demo.gif" alt="Lens Flow demo showing namespace topology, layout switching, and resource filtering" width="820">
+  </p>
+</details>
+
 ## 왜 Lens Flow인가
 
 Kubernetes 리소스 관계는 보통 여러 화면에 흩어져 있습니다. Lens Flow는 자주 확인하는 경로를 하나의 그래프로 모아서 이런 질문에 더 빨리 답할 수 있게 합니다.
