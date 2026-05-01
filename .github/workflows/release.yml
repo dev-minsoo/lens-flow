@@ -45,11 +45,13 @@ jobs:
 
       - name: Build package
         id: pack
-        run: npm pack --json > pack-output.json
+        run: npm pack
 
       - name: Read package asset
         id: pkg
-        run: echo "asset=$(node -p \"require('./pack-output.json')[0].filename\")" >> "$GITHUB_OUTPUT"
+        run: |
+          ASSET="$(node -e 'const pkg = require("./package.json"); const normalizedName = pkg.name.replace(/^@/, "").replace(/\//g, "-"); process.stdout.write(`${normalizedName}-${pkg.version}.tgz`);')"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
