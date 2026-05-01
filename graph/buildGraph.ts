@@ -128,6 +128,27 @@ function servicePortSummary(service: ServiceLike): string | undefined {
   return formatted ? `Port ${formatted}${suffix}` : labelValue("Type", service.spec?.type);
 }
 
+function serviceSummary(service: ServiceLike, pods: PodLike[]): string | undefined {
+  const type = service.spec?.type;
+  const portSummary = servicePortSummary(service);
+  if (type && portSummary && !portSummary.startsWith(`Type ${type}`)) {
+    return `${type} · ${portSummary}`;
+  }
+
+  return portSummary ?? labelValue("Type", type);
+}
+
+function serviceDetail(service: ServiceLike, pods: PodLike[]): string | undefined {
+  const parts = [
+    labelValue("Type", service.spec?.type),
+    servicePortSummary(service),
+    pods.length > 0 ? `Backends ${pods.length}` : undefined,
+    service.spec?.clusterIP ? `ClusterIP ${service.spec.clusterIP}` : undefined,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
 function workloadHealth(workload: WorkloadLike, kind: ResourceKind): ResourceHealth {
   if (kind === "DaemonSet") {
     const desired = workload.status?.desiredNumberScheduled ?? workload.status?.currentNumberScheduled ?? 0;
@@ -159,6 +180,53 @@ function replicaSetSummary(replicaSet: ReplicaSetLike): string {
   const ready = workloadReplicaSummary(replicaSet, "ReplicaSet");
 
   return revision ? `Rev ${revision} · ${ready}` : ready;
+}
+
+function podSummary(pod: PodLike): string | undefined {
+  const phase = pod.status?.phase;
+  const statuses = pod.status?.containerStatuses ?? [];
+
+  if (statuses.length > 0) {
+    const ready = statuses.filter(status => status.ready).length;
+
+    if (phase && phase !== "Running" && phase !== "Succeeded") {
+      return `${phase} · ${ready}/${statuses.length}`;
+    }
+
+    return `Ready ${ready}/${statuses.length}`;
+  }
+
+  return labelValue("Phase", phase);
+}
+
+function podDetail(pod: PodLike): string | undefined {
+  const parts = [
+    podSummary(pod),
+    pod.spec?.nodeName ? `Node ${pod.spec.nodeName}` : undefined,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
+function ingressSummary(ingress: IngressLike): string | undefined {
+  const hosts = (ingress.spec?.rules ?? []).map(rule => rule.host).filter(Boolean) as string[];
+  const visibleHosts = unique(hosts).slice(0, 2);
+  if (visibleHosts.length === 0) return undefined;
+
+  const summary = visibleHosts.join(", ");
+  const extraCount = unique(hosts).length - visibleHosts.length;
+  return extraCount > 0 ? `Host ${summary} +${extraCount}` : `Host ${summary}`;
+}
+
+function ingressDetail(ingress: IngressLike): string | undefined {
+  const hosts = unique((ingress.spec?.rules ?? []).map(rule => rule.host).filter(Boolean) as string[]);
+  const parts = [
+    hosts.length > 0 ? `Hosts ${hosts.join(", ")}` : undefined,
+    ingressBackends(ingress).length > 0 ? `Services ${ingressBackends(ingress).length}` : undefined,
+    getIngressAddress(ingress) ? `Address ${getIngressAddress(ingress)}` : undefined,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 function replicaSetRevision(replicaSet: ReplicaSetLike): number {
@@ -210,7 +278,6 @@ function addEdge(edges: Map<string, FlowEdge>, source: string, target: string, c
     source,
     target,
     type: "step",
-    animated: true,
     className: "workload-flow-edge",
     zIndex: 20,
     style: {
@@ -713,7 +780,8 @@ function addPodNode(nodes: Map<string, FlowNode>, pod: PodLike): void {
       type: "pod",
       kind: "Pod",
       namespace: pod.getNs(),
-      extra: labelValue("Phase", pod.status?.phase),
+      extra: podSummary(pod),
+      detail: podDetail(pod),
       health: podHealth(pod),
       resource: pod,
     },
@@ -853,7 +921,8 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         type: "service",
         kind: "Service",
         namespace: service.getNs(),
-        extra: servicePortSummary(service),
+        extra: serviceSummary(service, servicePods),
+        detail: serviceDetail(service, servicePods),
         health: serviceHealth(service, servicePods),
         resource: service,
       },
@@ -951,8 +1020,8 @@ export function buildWorkloadGraph(resources: WorkloadResources, options: Worklo
         type: "ingress",
         kind: "Ingress",
         namespace: ingress.getNs(),
-        extra: labelValue("Host", ingress.spec?.rules?.map(rule => rule.host).filter(Boolean).slice(0, 2).join(", ")),
-        detail: ingress.spec?.rules?.map(rule => rule.host).filter(Boolean).join(", "),
+        extra: ingressSummary(ingress),
+        detail: ingressDetail(ingress),
         health: ingressHealth(ingress),
         resource: ingress,
       },

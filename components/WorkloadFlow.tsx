@@ -5,6 +5,7 @@ import ReactFlow, {
   Background,
   Controls,
   Edge,
+  EdgeMarker,
   EdgeProps,
   Handle,
   MarkerType,
@@ -31,6 +32,8 @@ const k8sApi = Renderer.K8sApi as Record<string, unknown>;
 const NODE_ORIGIN: [number, number] = [0.5, 0.5];
 const FIT_VIEW_PADDING = 0.06;
 const EDGE_LANE_GAP = 8;
+const EDGE_HOVER_ACTIVATION_DELAY_MS = 100;
+const EDGE_HOVER_CLEAR_DELAY_MS = 100;
 
 type KubeStoreLike = {
   items: unknown[];
@@ -143,6 +146,15 @@ function edgeLaneOffset(lane: number | undefined): number {
   return (lane ?? 0) * EDGE_LANE_GAP;
 }
 
+function recolorMarkerEnd(markerEnd: EdgeMarker | string | undefined, color: string): EdgeMarker | string | undefined {
+  if (!markerEnd || typeof markerEnd === "string") return markerEnd;
+
+  return {
+    ...markerEnd,
+    color,
+  };
+}
+
 const LaneEdge = ({
   id,
   sourceX,
@@ -171,9 +183,15 @@ const LaneEdge = ({
     offset: 18,
   });
   const edgeState = typeof data?.edgeState === "string" ? data.edgeState : "idle";
+  const edgeClassName = edgeState === "highlighted"
+    ? "react-flow__edge-path is-highlighted"
+    : "react-flow__edge-path";
+  const edgeColor = typeof style?.stroke === "string" ? style.stroke : "#2a8af6";
+  const resolvedStroke = edgeState === "highlighted" ? edgeColor : "rgba(148, 163, 184, 0.48)";
   const mergedStyle: CSSProperties = {
     ...style,
     opacity: edgeState === "dimmed" ? 0.18 : 1,
+    stroke: resolvedStroke,
     strokeWidth: edgeState === "highlighted"
       ? Math.max(Number(style?.strokeWidth ?? 2.5) + 1, 3.5)
       : style?.strokeWidth,
@@ -187,7 +205,7 @@ const LaneEdge = ({
     <g>
       <path
         id={id}
-        className="react-flow__edge-path"
+        className={edgeClassName}
         d={path}
         markerEnd={markerEnd}
         style={mergedStyle}
@@ -449,6 +467,14 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const storesRef = useRef<WorkloadStores>({});
   const flowRef = useRef<ReactFlowInstance<FlowNodeData> | null>(null);
   const fitSignatureRef = useRef("");
+  const hoverTimerRef = useRef<number | null>(null);
+
+  const clearHoverTimer = useCallback(() => {
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  }, []);
 
   const fitGraph = useCallback(() => {
     requestAnimationFrame(() => {
@@ -459,12 +485,20 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   }, []);
 
   const activateEdgeHover = useCallback((edgeId: string) => {
-    setHoveredEdgeId(current => current === edgeId ? current : edgeId);
-  }, []);
+    clearHoverTimer();
+    hoverTimerRef.current = window.setTimeout(() => {
+      setHoveredEdgeId(current => current === edgeId ? current : edgeId);
+      hoverTimerRef.current = null;
+    }, EDGE_HOVER_ACTIVATION_DELAY_MS);
+  }, [clearHoverTimer]);
 
   const clearEdgeHover = useCallback(() => {
-    setHoveredEdgeId(current => current === null ? current : null);
-  }, []);
+    clearHoverTimer();
+    hoverTimerRef.current = window.setTimeout(() => {
+      setHoveredEdgeId(current => current === null ? current : null);
+      hoverTimerRef.current = null;
+    }, EDGE_HOVER_CLEAR_DELAY_MS);
+  }, [clearHoverTimer]);
 
   const updateGraph = useCallback(() => {
     const stores = storesRef.current;
@@ -488,6 +522,10 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   useEffect(() => {
     if (nodes.length > 0) fitGraph();
   }, [fitGraph, graphRevision]);
+
+  useEffect(() => () => {
+    clearHoverTimer();
+  }, [clearHoverTimer]);
 
   useEffect(() => {
     let isMounted = true;
@@ -579,14 +617,16 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     const isHighlighted = hoveredNodeIds.has(node.id);
     return {
       ...node,
-      className: isHighlighted ? "is-highlighted" : "is-dimmed",
+      className: isHighlighted ? "is-highlighted" : undefined,
     };
   });
 
   const renderedEdges = edges.map(edge => {
     if (!hoveredEdgeId) {
+      const idleStroke = "rgba(148, 163, 184, 0.48)";
       return {
         ...edge,
+        markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, idleStroke),
         data: {
         ...edge.data,
         edgeState: "idle",
@@ -596,11 +636,16 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     };
   }
 
+    const highlighted = edge.id === hoveredEdgeId;
+    const stroke = highlighted
+      ? (typeof edge.style?.stroke === "string" ? edge.style.stroke : "#2a8af6")
+      : "rgba(148, 163, 184, 0.48)";
     return {
       ...edge,
+      markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, stroke),
       data: {
         ...edge.data,
-        edgeState: edge.id === hoveredEdgeId ? "highlighted" : "dimmed",
+        edgeState: highlighted ? "highlighted" : "idle",
         onHoverStart: () => activateEdgeHover(edge.id),
         onHoverEnd: clearEdgeHover,
       },

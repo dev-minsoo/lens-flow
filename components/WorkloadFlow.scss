@@ -244,14 +244,6 @@
     border-radius: 0 !important;
     box-shadow: none !important;
 
-    &.is-dimmed {
-      .workload-card,
-      .cloud-node {
-        opacity: 0.34;
-        transform: scale(0.985);
-      }
-    }
-
     &.is-highlighted {
       .workload-card,
       .cloud-node {
@@ -280,11 +272,17 @@
   .react-flow__edge-path {
     stroke-linecap: round;
     stroke-dasharray: 8 8 !important;
-    filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
+    filter: none;
     transition:
+      stroke 120ms ease,
       opacity 120ms ease,
       stroke-width 120ms ease,
       filter 120ms ease;
+  }
+
+  .react-flow__edge-path.is-highlighted {
+    filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
+    animation: dash 0.85s linear infinite;
   }
 
   .workload-flow-edge-hitbox {
