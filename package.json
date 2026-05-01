@@ -1,6 +1,6 @@
 {
   "name": "@dev-minsoo/lens-flow",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Lens extension providing workload flow monitoring with React Flow",
   "main": "dist/main.js",
   "renderer": "dist/renderer.js",
