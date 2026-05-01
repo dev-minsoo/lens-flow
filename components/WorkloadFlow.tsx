@@ -34,6 +34,8 @@ const FIT_VIEW_PADDING: Record<GraphDirection, number> = {
   LR: 0.16,
   TB: 0.20,
 };
+const VIEWPORT_NODE_MARGIN_X = 240;
+const VIEWPORT_NODE_MARGIN_Y = 120;
 const EDGE_LANE_GAP = 8;
 const EDGE_HOVER_ACTIVATION_DELAY_MS = 100;
 const EDGE_HOVER_CLEAR_DELAY_MS = 100;
@@ -451,6 +453,56 @@ function buildGraph(stores: WorkloadStores, namespaces: string[], direction: Gra
   return { nodes, edges };
 }
 
+function graphLayoutSignature(nodes: Node<FlowNodeData>[], edges: Edge[]): string {
+  return JSON.stringify({
+    nodes: nodes
+      .map(node => [
+        node.id,
+        Math.round(node.position.x),
+        Math.round(node.position.y),
+        node.sourcePosition,
+        node.targetPosition,
+      ])
+      .sort(([left], [right]) => String(left).localeCompare(String(right))),
+    edges: edges
+      .map(edge => [
+        edge.id,
+        edge.source,
+        edge.target,
+      ])
+      .sort(([left], [right]) => String(left).localeCompare(String(right))),
+  });
+}
+
+function graphRenderSignature(nodes: Node<FlowNodeData>[], edges: Edge[]): string {
+  return JSON.stringify({
+    nodes: nodes
+      .map(node => [
+        node.id,
+        Math.round(node.position.x),
+        Math.round(node.position.y),
+        node.type,
+        node.sourcePosition,
+        node.targetPosition,
+        node.data.label,
+        node.data.kind,
+        node.data.namespace,
+        node.data.extra,
+        node.data.detail,
+        node.data.health,
+      ])
+      .sort(([left], [right]) => String(left).localeCompare(String(right))),
+    edges: edges
+      .map(edge => [
+        edge.id,
+        edge.source,
+        edge.target,
+        typeof edge.style?.stroke === "string" ? edge.style.stroke : undefined,
+      ])
+      .sort(([left], [right]) => String(left).localeCompare(String(right))),
+  });
+}
+
 interface WorkloadFlowProps {
   direction: GraphDirection;
   visibleKinds: ResourceKind[];
@@ -469,8 +521,12 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   const [error, setError] = useState<string | null>(null);
   const storesRef = useRef<WorkloadStores>({});
   const flowRef = useRef<ReactFlowInstance<FlowNodeData> | null>(null);
+  const flowContainerRef = useRef<HTMLDivElement | null>(null);
   const fitSignatureRef = useRef("");
+  const renderSignatureRef = useRef("");
   const hoverTimerRef = useRef<number | null>(null);
+  const fitFrameRef = useRef<number | null>(null);
+  const pendingFitRef = useRef(false);
   const updateGraphRef = useRef<() => void>(() => undefined);
 
   const clearHoverTimer = useCallback(() => {
@@ -480,15 +536,59 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     }
   }, []);
 
+  const hasUsableFlowBounds = useCallback(() => {
+    const bounds = flowContainerRef.current?.getBoundingClientRect();
+
+    return Boolean(bounds && bounds.width > 100 && bounds.height > 100);
+  }, []);
+
   const fitGraph = useCallback(() => {
     const padding = FIT_VIEW_PADDING[direction];
+    pendingFitRef.current = true;
 
-    requestAnimationFrame(() => {
+    if (fitFrameRef.current !== null) {
+      window.cancelAnimationFrame(fitFrameRef.current);
+      fitFrameRef.current = null;
+    }
+
+    fitFrameRef.current = window.requestAnimationFrame(() => {
+      fitFrameRef.current = null;
       requestAnimationFrame(() => {
+        if (!hasUsableFlowBounds()) return;
+
+        pendingFitRef.current = false;
         flowRef.current?.fitView({ padding, duration: 180 });
       });
     });
-  }, [direction]);
+  }, [direction, hasUsableFlowBounds]);
+
+  const ensureGraphVisible = useCallback((candidateNodes: Node<FlowNodeData>[]) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const flow = flowRef.current;
+        const bounds = flowContainerRef.current?.getBoundingClientRect();
+
+        if (!flow || !bounds || candidateNodes.length === 0) return;
+        if (!hasUsableFlowBounds()) {
+          pendingFitRef.current = true;
+          return;
+        }
+
+        const viewport = flow.getViewport();
+        const hasVisibleNode = candidateNodes.some(node => {
+          const screenX = node.position.x * viewport.zoom + viewport.x;
+          const screenY = node.position.y * viewport.zoom + viewport.y;
+
+          return screenX >= -VIEWPORT_NODE_MARGIN_X
+            && screenX <= bounds.width + VIEWPORT_NODE_MARGIN_X
+            && screenY >= -VIEWPORT_NODE_MARGIN_Y
+            && screenY <= bounds.height + VIEWPORT_NODE_MARGIN_Y;
+        });
+
+        if (!hasVisibleNode) fitGraph();
+      });
+    });
+  }, [fitGraph, hasUsableFlowBounds]);
 
   const activateEdgeHover = useCallback((edgeId: string) => {
     clearHoverTimer();
@@ -515,15 +615,24 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     onNamespacesChange(availableNamespaces);
 
     const { nodes: newNodes, edges: newEdges } = buildGraph(stores, activeNamespaces, direction, visibleKinds);
-    const fitSignature = JSON.stringify({ direction, namespaces: activeNamespaces });
+    const renderSignature = graphRenderSignature(newNodes, newEdges);
+    const fitSignature = graphLayoutSignature(newNodes, newEdges);
 
+    if (renderSignature === renderSignatureRef.current) {
+      ensureGraphVisible(newNodes);
+      return;
+    }
+
+    renderSignatureRef.current = renderSignature;
     setNodes(newNodes);
     setEdges(newEdges);
     if (fitSignature !== fitSignatureRef.current) {
       fitSignatureRef.current = fitSignature;
       setGraphRevision(revision => revision + 1);
+    } else {
+      ensureGraphVisible(newNodes);
     }
-  }, [direction, onNamespacesChange, selectedNamespaces, visibleKinds]);
+  }, [direction, ensureGraphVisible, onNamespacesChange, selectedNamespaces, visibleKinds]);
 
   useEffect(() => {
     updateGraphRef.current = updateGraph;
@@ -537,8 +646,25 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     if (nodes.length > 0) fitGraph();
   }, [fitGraph, graphRevision]);
 
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      if (pendingFitRef.current && nodes.length > 0 && hasUsableFlowBounds()) {
+        fitGraph();
+      }
+    });
+    const container = flowContainerRef.current;
+
+    if (container) observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [fitGraph, hasUsableFlowBounds, nodes.length]);
+
   useEffect(() => () => {
     clearHoverTimer();
+    if (fitFrameRef.current !== null) {
+      window.cancelAnimationFrame(fitFrameRef.current);
+      fitFrameRef.current = null;
+    }
   }, [clearHoverTimer]);
 
   useEffect(() => {
@@ -667,7 +793,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
   });
 
   return (
-    <div className="WorkloadFlow">
+    <div className="WorkloadFlow" ref={flowContainerRef}>
       <ReactFlow
         nodes={renderedNodes}
         edges={renderedEdges}
