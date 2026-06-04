@@ -1,8 +1,22 @@
 .WorkloadFlowPage {
+  --workload-flow-surface-background: var(--contentColor, #171923);
+  --workload-flow-control-background: var(--inputControlBackground, var(--contentColor, #171923));
+  --workload-flow-control-border: var(--inputControlBorder, var(--borderColor, rgba(255, 255, 255, 0.12)));
+  --workload-flow-control-hover-background: var(--colorVague, rgba(255, 255, 255, 0.06));
+  --workload-flow-text-primary: var(--textColorPrimary, #f8fafc);
+  --workload-flow-text-secondary: var(--textColorSecondary, #cbd5e1);
+  --workload-flow-panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  --workload-flow-active-background: rgba(42, 138, 246, 0.24);
+
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+}
+
+body.theme-light .WorkloadFlowPage {
+  --workload-flow-panel-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+  --workload-flow-active-background: rgba(42, 138, 246, 0.16);
 }
 
 .WorkloadFlowToolbar {
@@ -22,7 +36,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  color: var(--textColorSecondary, #94a3b8);
+  color: var(--workload-flow-text-secondary);
   font-size: 12px;
 
   span {
@@ -33,12 +47,17 @@
     min-width: 180px;
     max-width: 260px;
     height: 28px;
-    border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--workload-flow-control-border);
     border-radius: 8px;
-    color: var(--textColorPrimary, #f8fafc);
-    background: var(--boxBackground, rgba(23, 25, 35, 0.78));
+    color: var(--workload-flow-text-primary);
+    background: var(--workload-flow-control-background);
     font-size: 12px;
     padding: 0 8px;
+
+    option {
+      color: var(--workload-flow-text-primary);
+      background: var(--workload-flow-surface-background);
+    }
   }
 }
 
@@ -46,23 +65,23 @@
   display: inline-flex;
   align-items: center;
   padding: 2px;
-  border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--workload-flow-control-border);
   border-radius: 8px;
-  background: var(--boxBackground, rgba(23, 25, 35, 0.78));
+  background: var(--workload-flow-control-background);
 
   button {
     border: 0;
     border-radius: 6px;
     padding: 5px 10px;
-    color: var(--textColorSecondary, #94a3b8);
+    color: var(--workload-flow-text-secondary);
     background: transparent;
     font-size: 12px;
     line-height: 1.2;
     cursor: pointer;
 
     &.active {
-      color: var(--textColorPrimary, #f8fafc);
-      background: rgba(42, 138, 246, 0.24);
+      color: var(--workload-flow-text-primary);
+      background: var(--workload-flow-active-background);
     }
   }
 }
@@ -75,17 +94,17 @@
 
   > button {
     height: 28px;
-    border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--workload-flow-control-border);
     border-radius: 8px;
     padding: 0 10px;
-    color: var(--textColorSecondary, #cbd5e1);
-    background: var(--boxBackground, rgba(23, 25, 35, 0.78));
+    color: var(--workload-flow-text-secondary);
+    background: var(--workload-flow-control-background);
     font-size: 12px;
     cursor: pointer;
 
     &.active {
-      color: var(--textColorPrimary, #f8fafc);
-      background: rgba(42, 138, 246, 0.24);
+      color: var(--workload-flow-text-primary);
+      background: var(--workload-flow-active-background);
     }
   }
 }
@@ -111,10 +130,10 @@
   right: 0;
   z-index: 10;
   padding: 12px;
-  border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--workload-flow-control-border);
   border-radius: 8px;
-  background: var(--boxBackground, #171923);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  background: var(--workload-flow-surface-background);
+  box-shadow: var(--workload-flow-panel-shadow);
 }
 
 .WorkloadFlowViewPanel {
@@ -127,7 +146,7 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    color: var(--textColorSecondary, #cbd5e1);
+    color: var(--workload-flow-text-secondary);
     font-size: 12px;
     line-height: 1.2;
     white-space: nowrap;
@@ -154,7 +173,7 @@
 }
 
 .WorkloadFlowResourcePanelHeader {
-  color: var(--textColorPrimary, #f8fafc);
+  color: var(--workload-flow-text-primary);
   font-size: 12px;
   font-weight: 700;
   margin-bottom: 10px;
@@ -166,11 +185,11 @@
 }
 
 .WorkloadFlowResourcePanel button {
-  border: 1px solid var(--borderColor, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--workload-flow-control-border);
   border-radius: 6px;
   padding: 4px 8px;
-  color: var(--textColorSecondary, #cbd5e1);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--workload-flow-text-secondary);
+  background: var(--workload-flow-control-hover-background);
   font-size: 11px;
   cursor: pointer;
 
@@ -180,8 +199,8 @@
   }
 
   &.primary {
-    color: var(--textColorPrimary, #f8fafc);
-    background: rgba(42, 138, 246, 0.24);
+    color: var(--workload-flow-text-primary);
+    background: var(--workload-flow-active-background);
     border-color: rgba(42, 138, 246, 0.32);
   }
 }
@@ -196,7 +215,7 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
-    color: var(--textColorSecondary, #cbd5e1);
+    color: var(--workload-flow-text-secondary);
     font-size: 11px;
     line-height: 1.2;
 

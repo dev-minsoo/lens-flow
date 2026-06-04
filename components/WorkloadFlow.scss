@@ -1,12 +1,35 @@
 .WorkloadFlow {
+  --workload-flow-canvas-background: var(--canvasBackground, var(--mainBackground, #0f1117));
+  --workload-flow-canvas-blue-glow: rgba(42, 138, 246, 0.1);
+  --workload-flow-canvas-magenta-glow: rgba(174, 83, 186, 0.08);
+  --workload-flow-surface-background: var(--contentColor, #171923);
+  --workload-flow-control-background: var(--inputControlBackground, var(--contentColor, #171923));
+  --workload-flow-control-border: var(--inputControlBorder, var(--borderColor, rgba(255, 255, 255, 0.12)));
+  --workload-flow-control-hover-background: var(--colorVague, rgba(255, 255, 255, 0.06));
+  --workload-flow-text-primary: var(--textColorPrimary, #f8fafc);
+  --workload-flow-text-secondary: var(--textColorSecondary, #cbd5e1);
+  --workload-flow-text-muted: var(--textColorTertiary, var(--textColorSecondary, #94a3b8));
+  --workload-flow-chip-background: var(--colorVague, rgba(255, 255, 255, 0.06));
+  --workload-flow-chip-border: var(--borderFaintColor, rgba(255, 255, 255, 0.08));
+  --workload-flow-card-border: var(--borderColor, rgba(255, 255, 255, 0.1));
+  --workload-flow-card-ring: rgba(255, 255, 255, 0.025);
+  --workload-flow-card-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  --workload-flow-card-hover-ring: rgba(255, 255, 255, 0.04);
+  --workload-flow-card-highlight-ring: rgba(255, 255, 255, 0.05);
+  --workload-flow-card-highlight-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+  --workload-flow-edge-idle: rgba(148, 163, 184, 0.58);
+  --workload-flow-edge-highlight-filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.28));
+  --workload-flow-grid-color: var(--borderFaintColor, rgba(148, 163, 184, 0.24));
+  --workload-flow-minimap-mask: rgba(15, 23, 42, 0.2);
+
   flex: 1 1 auto;
   height: 100%;
   width: 100%;
   min-height: 520px;
   background:
-    radial-gradient(circle at 20% 10%, rgba(42, 138, 246, 0.1), transparent 30%),
-    radial-gradient(circle at 80% 20%, rgba(174, 83, 186, 0.08), transparent 28%),
-    var(--mainBackground, #0f1117);
+    radial-gradient(circle at 20% 10%, var(--workload-flow-canvas-blue-glow), transparent 30%),
+    radial-gradient(circle at 80% 20%, var(--workload-flow-canvas-magenta-glow), transparent 28%),
+    var(--workload-flow-canvas-background);
   border-radius: 8px;
   position: relative;
   overflow: hidden;
@@ -68,7 +91,7 @@
     box-sizing: border-box;
     gap: 8px;
     padding: 6px 8px;
-    color: #94a3b8;
+    color: var(--workload-flow-text-muted);
 
     svg {
       flex: 0 0 auto;
@@ -80,7 +103,7 @@
     .cloud-label {
       font-size: 12px;
       font-weight: 500;
-      color: #64748b;
+      color: var(--workload-flow-text-muted);
     }
   }
 
@@ -98,14 +121,14 @@
     height: 88px;
     box-sizing: border-box;
     padding: 12px 14px 12px 16px;
-    color: #f8fafc;
-    background: var(--boxBackground, rgba(23, 25, 35, 0.9));
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--workload-flow-text-primary);
+    background: var(--workload-flow-surface-background);
+    border: 1px solid var(--workload-flow-card-border);
     border-left: 4px solid var(--node-accent);
     border-radius: 8px;
     box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.025),
-      0 12px 30px rgba(0, 0, 0, 0.3),
+      0 0 0 1px var(--workload-flow-card-ring),
+      var(--workload-flow-card-shadow),
       0 0 24px var(--node-glow);
     cursor: pointer;
 
@@ -113,8 +136,8 @@
     &:focus-visible {
       border-color: var(--node-accent);
       box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.035),
-        0 12px 30px rgba(0, 0, 0, 0.3),
+        0 0 0 1px var(--workload-flow-card-hover-ring),
+        var(--workload-flow-card-shadow),
         0 0 24px var(--node-glow);
       outline: none;
     }
@@ -129,7 +152,7 @@
   .node-label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--textColorPrimary, #f8fafc);
+    color: var(--workload-flow-text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -149,9 +172,9 @@
     min-width: 0;
     font-size: 10px;
     line-height: 16px;
-    color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--workload-flow-text-secondary);
+    background: var(--workload-flow-chip-background);
+    border: 1px solid var(--workload-flow-chip-border);
     border-radius: 999px;
     padding: 0 7px;
     white-space: nowrap;
@@ -161,7 +184,7 @@
 
   .node-kind {
     flex: 0 0 auto;
-    color: #e2e8f0;
+    color: var(--workload-flow-text-primary);
   }
 
   .node-namespace {
@@ -171,7 +194,7 @@
   .node-side {
     width: 100%;
     max-width: none;
-    color: #94a3b8;
+    color: var(--workload-flow-text-muted);
     font-size: 10px;
     line-height: 1.25;
     text-align: left;
@@ -253,8 +276,8 @@
       .workload-card {
         border-color: var(--node-accent);
         box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.05),
-          0 14px 34px rgba(0, 0, 0, 0.34),
+          0 0 0 1px var(--workload-flow-card-highlight-ring),
+          var(--workload-flow-card-highlight-shadow),
           0 0 32px var(--node-glow);
       }
     }
@@ -281,7 +304,7 @@
   }
 
   .react-flow__edge-path.is-highlighted {
-    filter: drop-shadow(0 0 5px rgba(42, 138, 246, 0.22));
+    filter: var(--workload-flow-edge-highlight-filter);
     animation: dash 0.85s linear infinite;
   }
 
@@ -294,17 +317,17 @@
   }
 
   .react-flow__controls {
-    background: var(--boxBackground, #252542);
-    border: 1px solid var(--borderColor, #3a3a5c);
+    background: var(--workload-flow-control-background);
+    border: 1px solid var(--workload-flow-control-border);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--workload-flow-card-shadow);
     overflow: hidden;
 
     button {
       background: transparent;
       border: none;
-      border-bottom: 1px solid var(--borderColor, #3a3a5c);
-      color: var(--textColorPrimary, #fff);
+      border-bottom: 1px solid var(--workload-flow-control-border);
+      color: var(--workload-flow-text-primary);
       width: 28px;
       height: 28px;
       display: flex;
@@ -316,11 +339,11 @@
       }
 
       &:hover {
-        background: var(--colorVague, #3a3a5c);
+        background: var(--workload-flow-control-hover-background);
       }
 
       svg {
-        fill: var(--textColorPrimary, #fff);
+        fill: var(--workload-flow-text-primary);
         width: 14px;
         height: 14px;
       }
@@ -328,14 +351,28 @@
   }
 
   .react-flow__background {
-    background: var(--mainBackground, #1a1a2e);
+    background: var(--workload-flow-canvas-background);
   }
 
   .react-flow__minimap {
-    background: var(--boxBackground, #252542);
-    border: 1px solid var(--borderColor, #3a3a5c);
+    background: var(--workload-flow-control-background);
+    border: 1px solid var(--workload-flow-control-border);
     border-radius: 8px;
   }
+}
+
+body.theme-light .WorkloadFlow {
+  --workload-flow-canvas-blue-glow: rgba(42, 138, 246, 0.07);
+  --workload-flow-canvas-magenta-glow: rgba(174, 83, 186, 0.05);
+  --workload-flow-card-ring: rgba(15, 23, 42, 0.05);
+  --workload-flow-card-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  --workload-flow-card-hover-ring: rgba(42, 138, 246, 0.16);
+  --workload-flow-card-highlight-ring: rgba(42, 138, 246, 0.2);
+  --workload-flow-card-highlight-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+  --workload-flow-edge-idle: rgba(71, 85, 105, 0.72);
+  --workload-flow-edge-highlight-filter: drop-shadow(0 0 7px rgba(42, 138, 246, 0.24));
+  --workload-flow-grid-color: var(--borderColor, rgba(100, 116, 139, 0.32));
+  --workload-flow-minimap-mask: rgba(255, 255, 255, 0.68);
 }
 
 .WorkloadFlowMessage {

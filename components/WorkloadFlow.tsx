@@ -192,7 +192,8 @@ const LaneEdge = ({
     ? "react-flow__edge-path is-highlighted"
     : "react-flow__edge-path";
   const edgeColor = typeof style?.stroke === "string" ? style.stroke : "#2a8af6";
-  const resolvedStroke = edgeState === "highlighted" ? edgeColor : "rgba(148, 163, 184, 0.48)";
+  const idleStroke = "var(--workload-flow-edge-idle, rgba(148, 163, 184, 0.58))";
+  const resolvedStroke = edgeState === "highlighted" ? edgeColor : idleStroke;
   const mergedStyle: CSSProperties = {
     ...style,
     opacity: edgeState === "dimmed" ? 0.18 : 1,
@@ -201,7 +202,7 @@ const LaneEdge = ({
       ? Math.max(Number(style?.strokeWidth ?? 2.5) + 1, 3.5)
       : style?.strokeWidth,
     filter: edgeState === "highlighted"
-      ? "drop-shadow(0 0 8px rgba(255,255,255,0.28))"
+      ? "var(--workload-flow-edge-highlight-filter, drop-shadow(0 0 8px rgba(255, 255, 255, 0.28)))"
       : style?.filter,
     pointerEvents: "none",
   };
@@ -763,23 +764,23 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
 
   const renderedEdges = edges.map(edge => {
     if (!hoveredEdgeId) {
-      const idleStroke = "rgba(148, 163, 184, 0.48)";
+      const idleStroke = "var(--workload-flow-edge-idle, rgba(148, 163, 184, 0.58))";
       return {
         ...edge,
         markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, idleStroke),
         data: {
-        ...edge.data,
-        edgeState: "idle",
-        onHoverStart: () => activateEdgeHover(edge.id),
-        onHoverEnd: clearEdgeHover,
-      },
-    };
-  }
+          ...edge.data,
+          edgeState: "idle",
+          onHoverStart: () => activateEdgeHover(edge.id),
+          onHoverEnd: clearEdgeHover,
+        },
+      };
+    }
 
     const highlighted = edge.id === hoveredEdgeId;
     const stroke = highlighted
       ? (typeof edge.style?.stroke === "string" ? edge.style.stroke : "#2a8af6")
-      : "rgba(148, 163, 184, 0.48)";
+      : "var(--workload-flow-edge-idle, rgba(148, 163, 184, 0.58))";
     return {
       ...edge,
       markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, stroke),
@@ -816,8 +817,18 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
         }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="var(--borderColor, #333)" gap={20} size={1} />
-        {showMiniMap && <MiniMap position="bottom-left" pannable zoomable />}
+        <Background color="var(--workload-flow-grid-color, var(--borderFaintColor, #333))" gap={20} size={1} />
+        {showMiniMap && (
+          <MiniMap
+            position="bottom-left"
+            pannable
+            zoomable
+            nodeColor="var(--workload-flow-text-muted, var(--textColorSecondary, #94a3b8))"
+            nodeStrokeColor="var(--workload-flow-control-border, var(--borderColor, #3a3a5c))"
+            maskColor="var(--workload-flow-minimap-mask, rgba(15, 23, 42, 0.2))"
+            maskStrokeColor="var(--workload-flow-control-border, var(--borderColor, transparent))"
+          />
+        )}
         {showControls && (
           <Controls
             className="WorkloadFlowControls"
