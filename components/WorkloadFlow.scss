@@ -17,7 +17,8 @@
   --workload-flow-card-hover-ring: rgba(255, 255, 255, 0.04);
   --workload-flow-card-highlight-ring: rgba(255, 255, 255, 0.05);
   --workload-flow-card-highlight-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
-  --workload-flow-edge-idle: rgba(148, 163, 184, 0.58);
+  --workload-flow-cloud-color: var(--workload-flow-text-muted);
+  --workload-flow-cloud-label-color: var(--workload-flow-text-muted);
   --workload-flow-edge-highlight-filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.28));
   --workload-flow-grid-color: var(--borderFaintColor, rgba(148, 163, 184, 0.24));
   --workload-flow-minimap-mask: rgba(15, 23, 42, 0.2);
@@ -91,7 +92,7 @@
     box-sizing: border-box;
     gap: 8px;
     padding: 6px 8px;
-    color: var(--workload-flow-text-muted);
+    color: var(--workload-flow-cloud-color);
 
     svg {
       flex: 0 0 auto;
@@ -103,7 +104,7 @@
     .cloud-label {
       font-size: 12px;
       font-weight: 500;
-      color: var(--workload-flow-text-muted);
+      color: var(--workload-flow-cloud-label-color);
     }
   }
 
@@ -131,6 +132,20 @@
       var(--workload-flow-card-shadow),
       0 0 24px var(--node-glow);
     cursor: pointer;
+    transition:
+      background 120ms ease,
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      pointer-events: none;
+      transition: border-color 120ms ease;
+    }
 
     &:hover,
     &:focus-visible {
@@ -140,6 +155,10 @@
         var(--workload-flow-card-shadow),
         0 0 24px var(--node-glow);
       outline: none;
+
+      &::after {
+        border-color: var(--node-accent);
+      }
     }
   }
 
@@ -147,6 +166,8 @@
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
   }
 
   .node-label {
@@ -201,6 +222,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: relative;
+    z-index: 1;
   }
 
   .workload-card-loadbalancer {
@@ -366,11 +389,12 @@ body.theme-light .WorkloadFlow {
   --workload-flow-canvas-magenta-glow: rgba(174, 83, 186, 0.05);
   --workload-flow-card-ring: rgba(15, 23, 42, 0.05);
   --workload-flow-card-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
-  --workload-flow-card-hover-ring: rgba(42, 138, 246, 0.16);
-  --workload-flow-card-highlight-ring: rgba(42, 138, 246, 0.2);
-  --workload-flow-card-highlight-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
-  --workload-flow-edge-idle: rgba(71, 85, 105, 0.72);
-  --workload-flow-edge-highlight-filter: drop-shadow(0 0 7px rgba(42, 138, 246, 0.24));
+  --workload-flow-card-hover-ring: rgba(15, 23, 42, 0.1);
+  --workload-flow-card-highlight-ring: rgba(15, 23, 42, 0.12);
+  --workload-flow-card-highlight-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
+  --workload-flow-cloud-color: #64748b;
+  --workload-flow-cloud-label-color: #475569;
+  --workload-flow-edge-highlight-filter: drop-shadow(0 0 7px rgba(42, 138, 246, 0.34));
   --workload-flow-grid-color: var(--borderColor, rgba(100, 116, 139, 0.32));
   --workload-flow-minimap-mask: rgba(255, 255, 255, 0.68);
 }

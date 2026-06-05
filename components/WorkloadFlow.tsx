@@ -39,6 +39,7 @@ const VIEWPORT_NODE_MARGIN_Y = 120;
 const EDGE_LANE_GAP = 8;
 const EDGE_HOVER_ACTIVATION_DELAY_MS = 100;
 const EDGE_HOVER_CLEAR_DELAY_MS = 100;
+const IDLE_EDGE_STROKE = "#64748b";
 
 type KubeStoreLike = {
   items: unknown[];
@@ -192,8 +193,7 @@ const LaneEdge = ({
     ? "react-flow__edge-path is-highlighted"
     : "react-flow__edge-path";
   const edgeColor = typeof style?.stroke === "string" ? style.stroke : "#2a8af6";
-  const idleStroke = "var(--workload-flow-edge-idle, rgba(148, 163, 184, 0.58))";
-  const resolvedStroke = edgeState === "highlighted" ? edgeColor : idleStroke;
+  const resolvedStroke = edgeState === "highlighted" ? edgeColor : IDLE_EDGE_STROKE;
   const mergedStyle: CSSProperties = {
     ...style,
     opacity: edgeState === "dimmed" ? 0.18 : 1,
@@ -764,10 +764,9 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
 
   const renderedEdges = edges.map(edge => {
     if (!hoveredEdgeId) {
-      const idleStroke = "var(--workload-flow-edge-idle, rgba(148, 163, 184, 0.58))";
       return {
         ...edge,
-        markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, idleStroke),
+        markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, IDLE_EDGE_STROKE),
         data: {
           ...edge.data,
           edgeState: "idle",
@@ -780,7 +779,7 @@ export const WorkloadFlow = observer(({ direction, visibleKinds, selectedNamespa
     const highlighted = edge.id === hoveredEdgeId;
     const stroke = highlighted
       ? (typeof edge.style?.stroke === "string" ? edge.style.stroke : "#2a8af6")
-      : "var(--workload-flow-edge-idle, rgba(148, 163, 184, 0.58))";
+      : IDLE_EDGE_STROKE;
     return {
       ...edge,
       markerEnd: recolorMarkerEnd(edge.markerEnd as EdgeMarker | string | undefined, stroke),
